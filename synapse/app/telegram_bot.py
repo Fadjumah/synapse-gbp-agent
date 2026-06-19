@@ -14,7 +14,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_message = update.message.text
     # Invoke the agent
-    response = await root_agent.ainvoke(user_message)
+    response = await root_agent.run_async(user_message)
     await context.bot.send_message(chat_id=update.effective_chat.id, text=response)
 
 def create_telegram_application():
