@@ -69,13 +69,25 @@ def collect_feedback(feedback: Feedback) -> dict[str, str]:
 
 @app.post("/webhook")
 async def telegram_webhook(request: Request):
+    logger.log_text("Received request at /webhook", severity="INFO")
     if not telegram_app:
+        logger.log_text("Telegram bot not initialized", severity="WARNING")
         return {"status": "bot not initialized"}
     
-    data = await request.json()
-    update = Update.de_json(data, telegram_app.bot)
-    await telegram_app.process_update(update)
-    return {"status": "ok"}
+    try:
+        data = await request.json()
+        logger.log_struct({"message": "Received Telegram update", "data": data}, severity="INFO")
+        update = Update.de_json(data, telegram_app.bot)
+        await telegram_app.process_update(update)
+        return {"status": "ok"}
+    except Exception as e:
+        logger.log_text(f"Error processing webhook: {str(e)}", severity="ERROR")
+        return {"status": "error", "message": str(e)}
+
+@app.post("/")
+async def root_webhook(request: Request):
+    # Redirect to the /webhook handler
+    return await telegram_webhook(request)
 
 
 # Main execution
