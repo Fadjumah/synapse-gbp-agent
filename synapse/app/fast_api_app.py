@@ -20,6 +20,8 @@ from google.cloud import logging as google_cloud_logging
 
 from app.app_utils.telemetry import setup_telemetry
 from app.app_utils.typing import Feedback
+from app.telegram_bot import run_telegram_bot
+import threading
 
 setup_telemetry()
 _, project_id = google.auth.default()
@@ -28,6 +30,10 @@ logger = logging_client.logger(__name__)
 allow_origins = (
     os.getenv("ALLOW_ORIGINS", "").split(",") if os.getenv("ALLOW_ORIGINS") else None
 )
+
+# Start telegram bot in a separate thread
+if os.getenv("TELEGRAM_TOKEN"):
+    threading.Thread(target=run_telegram_bot, daemon=True).start()
 
 # Artifact bucket for ADK (created by Terraform, passed via env var)
 logs_bucket_name = os.environ.get("LOGS_BUCKET_NAME")
