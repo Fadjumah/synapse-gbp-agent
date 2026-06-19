@@ -29,6 +29,12 @@ variable "region" {
   default     = "us-east1"
 }
 
+variable "telegram_token_secret_id" {
+  type        = string
+  description = "The secret ID for the Telegram token in Secret Manager"
+  default     = "TELEGRAM_TOKEN"
+}
+
 variable "telemetry_logs_filter" {
   type        = string
   description = "Log Sink filter for capturing telemetry data. Captures logs with the `traceloop.association.properties.log_type` attribute set to `tracing`."
@@ -45,11 +51,11 @@ variable "app_sa_roles" {
   description = "List of roles to assign to the application service account"
   type        = list(string)
   default = [
-
     "roles/aiplatform.user",
     "roles/logging.logWriter",
     "roles/cloudtrace.agent",
     "roles/storage.admin",
     "roles/serviceusage.serviceUsageConsumer",
+    "roles/secretmanager.secretAccessor",
   ]
 }
