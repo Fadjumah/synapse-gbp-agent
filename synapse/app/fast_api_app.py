@@ -67,16 +67,32 @@ def collect_feedback(feedback: Feedback) -> dict[str, str]:
     logger.log_struct(feedback.model_dump(), severity="INFO")
     return {"status": "success"}
 
+@app.post("/webhook/{token}")
 @app.post("/webhook")
-async def telegram_webhook(request: Request):
-    logger.log_text("Received request at /webhook", severity="INFO")
+async def telegram_webhook(request: Request, token: str = None):
+    # Log incoming request details immediately
+    logger.log_struct({
+        "message": "Received request at /webhook",
+        "path": request.url.path,
+        "method": request.method,
+        "token_provided": token is not None,
+        "headers": dict(request.headers),
+    }, severity="INFO")
+
     if not telegram_app:
         logger.log_text("Telegram bot not initialized", severity="WARNING")
         return {"status": "bot not initialized"}
     
+    # Optional: Validate the token if needed
+    # if token != os.getenv("TELEGRAM_TOKEN"):
+    #     return {"status": "unauthorized"}, 401
+    
     try:
+        body = await request.body()
+        # Log the raw body for debugging
+        logger.log_struct({"message": "Webhook body", "body": body.decode('utf-8')}, severity="INFO")
+        
         data = await request.json()
-        logger.log_struct({"message": "Received Telegram update", "data": data}, severity="INFO")
         update = Update.de_json(data, telegram_app.bot)
         await telegram_app.process_update(update)
         return {"status": "ok"}
@@ -86,6 +102,12 @@ async def telegram_webhook(request: Request):
 
 @app.post("/")
 async def root_webhook(request: Request):
+    # Log that a request hit the root path
+    logger.log_struct({
+        "message": "Received request at /",
+        "path": request.url.path,
+        "method": request.method,
+    }, severity="INFO")
     # Redirect to the /webhook handler
     return await telegram_webhook(request)
 
