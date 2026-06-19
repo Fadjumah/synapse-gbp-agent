@@ -12,16 +12,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import os
-
 import google.auth
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from google.adk.cli.fast_api import get_fast_api_app
 from google.cloud import logging as google_cloud_logging
+from telegram import Update
 
 from app.app_utils.telemetry import setup_telemetry
 from app.app_utils.typing import Feedback
-from app.telegram_bot import run_telegram_bot
-import threading
+from app.telegram_bot import create_telegram_application
 
 setup_telemetry()
 _, project_id = google.auth.default()
@@ -31,9 +30,8 @@ allow_origins = (
     os.getenv("ALLOW_ORIGINS", "").split(",") if os.getenv("ALLOW_ORIGINS") else None
 )
 
-# Start telegram bot in a separate thread
-if os.getenv("TELEGRAM_TOKEN"):
-    threading.Thread(target=run_telegram_bot, daemon=True).start()
+# Initialize Telegram application
+telegram_app = create_telegram_application()
 
 # Artifact bucket for ADK (created by Terraform, passed via env var)
 logs_bucket_name = os.environ.get("LOGS_BUCKET_NAME")
@@ -68,6 +66,16 @@ def collect_feedback(feedback: Feedback) -> dict[str, str]:
     """
     logger.log_struct(feedback.model_dump(), severity="INFO")
     return {"status": "success"}
+
+@app.post("/webhook")
+async def telegram_webhook(request: Request):
+    if not telegram_app:
+        return {"status": "bot not initialized"}
+    
+    data = await request.json()
+    update = Update.de_json(data, telegram_app.bot)
+    await telegram_app.process_update(update)
+    return {"status": "ok"}
 
 
 # Main execution

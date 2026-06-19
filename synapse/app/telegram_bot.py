@@ -17,10 +17,10 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     response = await root_agent.ainvoke(user_message)
     await context.bot.send_message(chat_id=update.effective_chat.id, text=response)
 
-def run_telegram_bot():
+def create_telegram_application():
     if not TELEGRAM_TOKEN:
-        print("TELEGRAM_TOKEN not set, skipping bot start")
-        return
+        print("TELEGRAM_TOKEN not set, skipping bot initialization")
+        return None
 
     application = ApplicationBuilder().token(TELEGRAM_TOKEN).build()
     
@@ -30,4 +30,4 @@ def run_telegram_bot():
     application.add_handler(start_handler)
     application.add_handler(message_handler)
     
-    application.run_polling()
+    return application
