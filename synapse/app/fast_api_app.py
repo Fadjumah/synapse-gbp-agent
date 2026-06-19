@@ -16,11 +16,15 @@ import google.auth
 from fastapi import FastAPI, Request
 from google.adk.cli.fast_api import get_fast_api_app
 from google.cloud import logging as google_cloud_logging
+from google import genai
 from telegram import Update
 
 from app.app_utils.telemetry import setup_telemetry
 from app.app_utils.typing import Feedback
 from app.telegram_bot import create_telegram_application
+
+# Initialize the Gemini API client
+client = genai.Client()
 
 setup_telemetry()
 _, project_id = google.auth.default()
