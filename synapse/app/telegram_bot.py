@@ -1,21 +1,62 @@
 import os
+import logging
+from dotenv import load_dotenv
 from telegram import Update
 from telegram.ext import ApplicationBuilder, ContextTypes, CommandHandler, MessageHandler, filters
-from google.adk.agents.llm_agent import Agent
+from google.adk.runners import Runner
+from google.adk.sessions import InMemorySessionService
+from google.genai import types
+
+# Load environment variables from .env if present
+load_dotenv()
 
 # Assuming root_agent is imported from agent.py
 from app.agent import root_agent
 
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
 
+# Setup logging
+logger = logging.getLogger(__name__)
+
+# Initialize Runner and Session Service
+session_service = InMemorySessionService()
+runner = Runner(
+    agent=root_agent,
+    app_name="app",
+    session_service=session_service,
+    auto_create_session=True
+)
+
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await context.bot.send_message(chat_id=update.effective_chat.id, text="I'm a bot, please talk to me!")
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_message = update.message.text
-    # Invoke the agent
-    response = await root_agent.run_async(user_message)
-    await context.bot.send_message(chat_id=update.effective_chat.id, text=response)
+    chat_id = str(update.effective_chat.id)
+    
+    logger.info(f"Received message from {chat_id}: {user_message}")
+    
+    # Invoke the agent using the runner
+    try:
+        response_text = ""
+        async for event in runner.run_async(
+            user_id=chat_id,
+            session_id=chat_id,
+            new_message=types.Content(role="user", parts=[types.Part.from_text(text=user_message)]),
+        ):
+            if event.is_final_response():
+                if event.content and event.content.parts:
+                    response_text += event.content.parts[0].text
+        
+        if response_text:
+            await context.bot.send_message(chat_id=update.effective_chat.id, text=response_text)
+        else:
+            logger.warning("Agent returned empty response")
+            await context.bot.send_message(chat_id=update.effective_chat.id, text="Sorry, I couldn't generate a response.")
+            
+    except Exception as e:
+        logger.error(f"Error invoking agent: {e}", exc_info=True)
+        await context.bot.send_message(chat_id=update.effective_chat.id, text="An error occurred while processing your request.")
 
 def create_telegram_application():
     if not TELEGRAM_TOKEN:

@@ -13,7 +13,12 @@
 # limitations under the License.
 import os
 import google.auth
+from dotenv import load_dotenv
+from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
+
+# Load environment variables
+load_dotenv()
 from google.adk.cli.fast_api import get_fast_api_app
 from google.cloud import logging as google_cloud_logging
 from google import genai
@@ -34,8 +39,6 @@ allow_origins = (
     os.getenv("ALLOW_ORIGINS", "").split(",") if os.getenv("ALLOW_ORIGINS") else None
 )
 
-from contextlib import asynccontextmanager
-
 # Initialize Telegram application variable
 telegram_app = create_telegram_application()
 
@@ -50,17 +53,6 @@ async def lifespan(app: FastAPI):
     if telegram_app is not None:
         await telegram_app.stop()
         await telegram_app.shutdown()
-
-# Initialize Gemini API client
-client = genai.Client()
-
-setup_telemetry()
-_, project_id = google.auth.default()
-logging_client = google_cloud_logging.Client()
-logger = logging_client.logger(__name__)
-allow_origins = (
-    os.getenv("ALLOW_ORIGINS", "").split(",") if os.getenv("ALLOW_ORIGINS") else None
-)
 
 # Artifact bucket for ADK (created by Terraform, passed via env var)
 logs_bucket_name = os.environ.get("LOGS_BUCKET_NAME")
