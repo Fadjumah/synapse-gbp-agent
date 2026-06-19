@@ -12,6 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+variable "container_image" {
+  type        = string
+  description = "The container image to deploy to Cloud Run."
+  default     = "us-docker.pkg.dev/cloudrun/container/hello"
+}
+
 variable "project_name" {
   type        = string
   description = "Project name used as a base for resource naming"

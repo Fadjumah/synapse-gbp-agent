@@ -25,7 +25,7 @@ resource "google_cloud_run_v2_service" "app" {
 
   template {
     containers {
-      image = "us-docker.pkg.dev/cloudrun/container/hello"
+      image = var.container_image
       resources {
         limits = {
           cpu    = "1"
@@ -66,14 +66,6 @@ resource "google_cloud_run_v2_service" "app" {
   traffic {
     type    = "TRAFFIC_TARGET_ALLOCATION_TYPE_LATEST"
     percent = 100
-  }
-
-  # This lifecycle block prevents Terraform from overwriting the container image when it's
-  # updated by Cloud Run deployments outside of Terraform (e.g., via CI/CD pipelines)
-  lifecycle {
-    ignore_changes = [
-      template[0].containers[0].image,
-    ]
   }
 
   # Make dependencies conditional to avoid errors.
