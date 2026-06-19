@@ -1,28 +1,43 @@
 import os
-import httpx
-from fastapi import FastAPI, Request
-from agent import process_user_message
+import logging
+from fastapi import FastAPI, Request, Response
+from telegram import Update
+from app.telegram_bot import create_telegram_application
+
+# Setup logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 app = FastAPI()
-TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
+
+# Initialize the Telegram Application
+telegram_app = create_telegram_application()
+
+@app.on_event("startup")
+async def startup():
+    if telegram_app:
+        await telegram_app.initialize()
+        await telegram_app.start()
+
+@app.on_event("shutdown")
+async def shutdown():
+    if telegram_app:
+        await telegram_app.stop()
+        await telegram_app.shutdown()
 
 @app.post("/webhook")
 async def webhook(request: Request):
-    if not TELEGRAM_BOT_TOKEN:
-        return {"status": "error", "message": "Missing TELEGRAM_BOT_TOKEN"}
+    if not telegram_app:
+        return {"status": "error", "message": "Bot not initialized"}
         
     payload = await request.json()
-    message = payload.get("message", {})
-    chat_id = message.get("chat", {}).get("id")
-    text = message.get("text")
+    
+    # Process the update through the Telegram application
+    update = Update.de_json(payload, telegram_app.bot)
+    await telegram_app.process_update(update)
+    
+    return Response(status_code=200)
 
-    if not chat_id or not text:
-        return {"status": "ok"}
-
-    agent_response = await process_user_message(str(chat_id), text)
-
-    async with httpx.AsyncClient() as client:
-        url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
-        await client.post(url, json={"chat_id": chat_id, "text": agent_response})
-        
+@app.get("/health")
+async def health():
     return {"status": "ok"}
