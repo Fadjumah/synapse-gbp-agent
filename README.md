@@ -52,23 +52,14 @@ The long-term goal is autonomous business profile management.
 
 # Architecture
 
-```text
-Owner
-  │
-  ▼
-Telegram Interface
-  │
-  ▼
+Telegram
+    ↓
 Cloud Run
-  │
-  ▼
-Synapse Agent (ADK)
-  │
-  ▼
+    ↓
+Synapse (ADK)
+    ↓
 Gemini
-  │
-  ├── GBP Tools
-  ├── Analytics Engine
-  ├── Planning Engine
-  ├── Memory Layer
-  └── Learning Layer
+    ↓
+Google Cloud Services
+    ↓
+GBP APIs
