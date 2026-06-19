@@ -34,8 +34,33 @@ allow_origins = (
     os.getenv("ALLOW_ORIGINS", "").split(",") if os.getenv("ALLOW_ORIGINS") else None
 )
 
-# Initialize Telegram application
+from contextlib import asynccontextmanager
+
+# Initialize Telegram application variable
 telegram_app = create_telegram_application()
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup: Initialize and start bot
+    if telegram_app is not None:
+        await telegram_app.initialize()
+        await telegram_app.start()
+    yield
+    # Shutdown: Stop bot
+    if telegram_app is not None:
+        await telegram_app.stop()
+        await telegram_app.shutdown()
+
+# Initialize Gemini API client
+client = genai.Client()
+
+setup_telemetry()
+_, project_id = google.auth.default()
+logging_client = google_cloud_logging.Client()
+logger = logging_client.logger(__name__)
+allow_origins = (
+    os.getenv("ALLOW_ORIGINS", "").split(",") if os.getenv("ALLOW_ORIGINS") else None
+)
 
 # Artifact bucket for ADK (created by Terraform, passed via env var)
 logs_bucket_name = os.environ.get("LOGS_BUCKET_NAME")
@@ -53,6 +78,7 @@ app: FastAPI = get_fast_api_app(
     allow_origins=allow_origins,
     session_service_uri=session_service_uri,
     otel_to_cloud=True,
+    lifespan=lifespan,
 )
 app.title = "synapse"
 app.description = "API for interacting with the Agent synapse"

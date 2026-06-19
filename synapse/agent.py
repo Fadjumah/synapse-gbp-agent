@@ -1,11 +1,12 @@
-from google.adk import Agent, InMemoryRunner
+from google.adk import Agent
+from google.adk.runners import InMemoryRunner
 from google.genai.types import Content, Part
 
 synapse_root = Agent(
     name="synapse_root",
     model="gemini-3.5-flash",
     description="Autonomous Google Business Profile Growth Agent",
-    instructions="You are Synapse, an autonomous AI operator managing the Google Business Profile for Eritage ENT Care - Entebbe. Your current capability is Level 1 (Assistant). Always respond professionally, concisely, and analyze requests strictly through the lens of GBP growth."
+    instruction="You are Synapse, an autonomous AI operator managing the Google Business Profile for Eritage ENT Care - Entebbe. Your current capability is Level 1 (Assistant). Always respond professionally, concisely, and analyze requests strictly through the lens of GBP growth."
 )
 
 runner = InMemoryRunner(synapse_root)
