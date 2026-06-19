@@ -43,11 +43,13 @@ resource "google_cloud_run_v2_service" "app" {
         value = "NO_CONTENT"
       }
 
-      secret_env_vars {
-        key = "TELEGRAM_TOKEN"
-        secret_selector {
-          secret  = var.telegram_token_secret_id
-          version = "latest"
+      env {
+        name = "TELEGRAM_TOKEN"
+        value_source {
+          secret_key_ref {
+            secret  = var.telegram_token_secret_id
+            version = "latest"
+          }
         }
       }
     }
