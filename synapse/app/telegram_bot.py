@@ -2,7 +2,8 @@ import logging
 import os
 
 from dotenv import load_dotenv
-from google.adk.runners import InMemoryRunner
+from google.adk.runners import Runner
+from google.adk.sessions import InMemorySessionService
 from google.genai import types
 from telegram import Update
 from telegram.ext import (
@@ -24,8 +25,9 @@ TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
 # Setup logging
 logger = logging.getLogger(__name__)
 
-# Initialize InMemoryRunner
-runner = InMemoryRunner(agent=root_agent)
+# Initialize Runner
+session_service = InMemorySessionService()
+runner = Runner(agent=root_agent, app_name="app", session_service=session_service)
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await context.bot.send_message(chat_id=update.effective_chat.id, text="I'm a bot, please talk to me!")
@@ -33,8 +35,12 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_message = update.message.text
     chat_id = str(update.effective_chat.id)
+    session_id = chat_id
 
     logger.info(f"Received message from {chat_id}: {user_message}")
+
+    # Ensure session exists
+    await session_service.create_session(app_name="app", user_id=chat_id, session_id=session_id)
 
     # Invoke the agent using the runner in an SDK-aligned way
     try:
@@ -42,7 +48,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # Using run_async with standard SDK types for better alignment
         async for event in runner.run_async(
             user_id=chat_id,
-            session_id=chat_id,
+            session_id=session_id,
             new_message=types.Content(role="user", parts=[types.Part.from_text(text=user_message)]),
         ):
             if event.is_final_response():

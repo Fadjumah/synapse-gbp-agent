@@ -31,11 +31,15 @@ from app.telegram_bot import create_telegram_application
 
 # Initialize the Gemini API client
 client = genai.Client()
+# Setup telemetry
+if os.getenv("INTEGRATION_TEST") != "TRUE":
+    setup_telemetry()
+    _, project_id = google.auth.default()
+    logging_client = google_cloud_logging.Client()
+    logger = logging_client.logger(__name__)
+else:
+    logger = logging.getLogger(__name__)
 
-setup_telemetry()
-_, project_id = google.auth.default()
-logging_client = google_cloud_logging.Client()
-logger = logging_client.logger(__name__)
 allow_origins = (
     os.getenv("ALLOW_ORIGINS", "").split(",") if os.getenv("ALLOW_ORIGINS") else None
 )

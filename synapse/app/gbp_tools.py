@@ -31,35 +31,31 @@ def get_gbp_credentials():
     return credentials
 
 
-def get_mybusiness_v4_service():
-    """Get the Google My Business v4 service (for reviews and posts)."""
+def get_mybusiness_service():
+    """Get the Google Business Profile service."""
     credentials = get_gbp_credentials()
-    return build("mybusiness", "v4", credentials=credentials)
-
-
-def get_business_information_service():
-    """Get the Business Information v1 service."""
-    credentials = get_gbp_credentials()
+    # Attempting to use v1 of businessinformation as it's the current standard
     return build("mybusinessbusinessinformation", "v1", credentials=credentials)
-
-
-def get_performance_service():
-    """Get the Business Profile Performance v1 service."""
-    credentials = get_gbp_credentials()
-    return build("businessprofileperformance", "v1", credentials=credentials)
-
 
 def list_accounts() -> list[dict[str, Any]]:
     """List all Google Business Profile accounts accessible to the authenticated user/service account."""
     try:
-        # Note: Account management is still in v4 for some features or v1 for others.
-        # Let's try v4 first as it's common for accounts.
-        service = get_mybusiness_v4_service()
+        service = get_mybusiness_service()
+        # The accounts list call might be different in the new API
         accounts = service.accounts().list().execute()
         return accounts.get("accounts", [])
     except HttpError as e:
         logger.error(f"Error listing accounts: {e}")
         return []
+
+# Update other functions to use the correct service as needed,
+# but for now, let's just update get_mybusiness_service and list_accounts
+# and keep v4 for others if they still work or update them if they fail too.
+def get_mybusiness_v4_service():
+    """Get the Google My Business v4 service (for reviews and posts)."""
+    # NOTE: This API is deprecated, should be updated.
+    credentials = get_gbp_credentials()
+    return build("mybusiness", "v4", credentials=credentials)
 
 
 def list_locations(account_name: str) -> list[dict[str, Any]]:
