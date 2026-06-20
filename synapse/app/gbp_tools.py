@@ -34,13 +34,13 @@ def get_gbp_credentials():
 def get_account_management_service():
     """Get the My Business Account Management v1 service."""
     credentials = get_gbp_credentials()
-    return build("mybusinessaccountmanagement", "v1", credentials=credentials)
+    return build("mybusinessaccountmanagement", "v1", credentials=credentials, cache_discovery=False)
 
 
 def get_business_information_service():
     """Get the Google Business Profile Information service."""
     credentials = get_gbp_credentials()
-    return build("mybusinessbusinessinformation", "v1", credentials=credentials)
+    return build("mybusinessbusinessinformation", "v1", credentials=credentials, cache_discovery=False)
 
 
 def list_accounts() -> list[dict[str, Any]]:
@@ -53,14 +53,12 @@ def list_accounts() -> list[dict[str, Any]]:
         logger.error(f"Error listing accounts: {e}")
         return []
 
-# Update other functions to use the correct service as needed,
-# but for now, let's just update get_mybusiness_service and list_accounts
-# and keep v4 for others if they still work or update them if they fail too.
+
 def get_mybusiness_v4_service():
     """Get the Google My Business v4 service (for reviews and posts)."""
     # NOTE: This API is deprecated, should be updated.
     credentials = get_gbp_credentials()
-    return build("mybusiness", "v4", credentials=credentials)
+    return build("mybusiness", "v4", credentials=credentials, cache_discovery=False)
 
 
 def list_locations(account_name: str) -> list[dict[str, Any]]:
@@ -159,6 +157,12 @@ def create_local_post(
         return {"error": str(e)}
 
 
+def get_performance_service():
+    """Get the Business Profile Performance v1 service."""
+    credentials = get_gbp_credentials()
+    return build("businessprofileperformance", "v1", credentials=credentials, cache_discovery=False)
+
+
 def get_performance_insights(
     location_name: str, start_day: str, end_day: str
 ) -> dict[str, Any]:
@@ -187,6 +191,13 @@ def get_performance_insights(
             "WEBSITE_CLICKS",
             "DIRECTION_REQUESTS",
             "BUSINESS_IMPRESSIONS_DESKTOP_MAPS",
+            "BUSINESS_IMPRESSIONS_DESKTOP_SEARCH",
+            "BUSINESS_IMPRESSIONS_MOBILE_MAPS",
+            "BUSINESS_IMPRESSIONS_MOBILE_SEARCH",
+            "BUSINESS_CONVERSATIONS",
+            "BUSINESS_BOOKINGS",
+            "BUSINESS_FOOD_ORDERS",
+            "BUSINESS_DIRECTION_REQUESTS",
         ]
 
         start_date = {

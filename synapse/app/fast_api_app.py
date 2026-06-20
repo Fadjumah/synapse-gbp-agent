@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import os
+import logging
 from contextlib import asynccontextmanager
 
 import google.auth
@@ -91,7 +92,10 @@ def collect_feedback(feedback: Feedback) -> dict[str, str]:
     Returns:
         Success message
     """
-    logger.log_struct(feedback.model_dump(), severity="INFO")
+    if hasattr(logger, "log_struct"):
+        logger.log_struct(feedback.model_dump(), severity="INFO")
+    else:
+        logger.info(str(feedback.model_dump()))
     return {"status": "success"}
 
 @app.post("/webhook/{token}")
