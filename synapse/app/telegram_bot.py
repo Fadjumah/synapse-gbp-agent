@@ -1,11 +1,18 @@
-import os
 import logging
+import os
+
 from dotenv import load_dotenv
-from telegram import Update
-from telegram.ext import ApplicationBuilder, ContextTypes, CommandHandler, MessageHandler, filters
 from google.adk.runners import Runner
 from google.adk.sessions import InMemorySessionService
 from google.genai import types
+from telegram import Update
+from telegram.ext import (
+    ApplicationBuilder,
+    CommandHandler,
+    ContextTypes,
+    MessageHandler,
+    filters,
+)
 
 # Load environment variables from .env if present
 load_dotenv()
@@ -33,9 +40,9 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_message = update.message.text
     chat_id = str(update.effective_chat.id)
-    
+
     logger.info(f"Received message from {chat_id}: {user_message}")
-    
+
     # Invoke the agent using the runner
     try:
         response_text = ""
@@ -47,13 +54,13 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             if event.is_final_response():
                 if event.content and event.content.parts:
                     response_text += event.content.parts[0].text
-        
+
         if response_text:
             await context.bot.send_message(chat_id=update.effective_chat.id, text=response_text)
         else:
             logger.warning("Agent returned empty response")
             await context.bot.send_message(chat_id=update.effective_chat.id, text="Sorry, I couldn't generate a response.")
-            
+
     except Exception as e:
         logger.error(f"Error invoking agent: {e}", exc_info=True)
         await context.bot.send_message(chat_id=update.effective_chat.id, text="An error occurred while processing your request.")
@@ -64,11 +71,11 @@ def create_telegram_application():
         return None
 
     application = ApplicationBuilder().token(TELEGRAM_TOKEN).build()
-    
+
     start_handler = CommandHandler('start', start)
     message_handler = MessageHandler(filters.TEXT & (~filters.COMMAND), handle_message)
-    
+
     application.add_handler(start_handler)
     application.add_handler(message_handler)
-    
+
     return application

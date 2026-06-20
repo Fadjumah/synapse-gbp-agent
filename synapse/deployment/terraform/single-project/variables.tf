@@ -41,6 +41,24 @@ variable "telegram_token_secret_id" {
   default     = "TELEGRAM_TOKEN"
 }
 
+variable "google_refresh_token_secret_id" {
+  type        = string
+  description = "The secret ID for the Google OAuth2 refresh token in Secret Manager"
+  default     = "GOOGLE_REFRESH_TOKEN"
+}
+
+variable "google_client_id_secret_id" {
+  type        = string
+  description = "The secret ID for the Google OAuth2 client ID in Secret Manager"
+  default     = "GOOGLE_CLIENT_ID"
+}
+
+variable "google_client_secret_secret_id" {
+  type        = string
+  description = "The secret ID for the Google OAuth2 client secret in Secret Manager"
+  default     = "GOOGLE_CLIENT_SECRET"
+}
+
 variable "telemetry_logs_filter" {
   type        = string
   description = "Log Sink filter for capturing telemetry data. Captures logs with the `traceloop.association.properties.log_type` attribute set to `tracing`."

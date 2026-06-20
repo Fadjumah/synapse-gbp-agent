@@ -24,6 +24,10 @@ locals {
     "logging.googleapis.com",
     "cloudtrace.googleapis.com",
     "telemetry.googleapis.com",
+    "mybusinessbusinessinformation.googleapis.com",
+    "mybusinessaccountmanagement.googleapis.com",
+    "businessprofileperformance.googleapis.com",
+    "mybusiness.googleapis.com",
   ]
 }
 

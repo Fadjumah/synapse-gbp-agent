@@ -12,16 +12,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import os
+from contextlib import asynccontextmanager
+
 import google.auth
 from dotenv import load_dotenv
-from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 
 # Load environment variables
 load_dotenv()
+from google import genai
 from google.adk.cli.fast_api import get_fast_api_app
 from google.cloud import logging as google_cloud_logging
-from google import genai
 from telegram import Update
 
 from app.app_utils.telemetry import setup_telemetry
@@ -104,22 +105,22 @@ async def telegram_webhook(request: Request, token: str = None):
     if not telegram_app:
         logger.log_text("Telegram bot not initialized", severity="WARNING")
         return {"status": "bot not initialized"}
-    
+
     # Optional: Validate the token if needed
     # if token != os.getenv("TELEGRAM_TOKEN"):
     #     return {"status": "unauthorized"}, 401
-    
+
     try:
         body = await request.body()
         # Log the raw body for debugging
         logger.log_struct({"message": "Webhook body", "body": body.decode('utf-8')}, severity="INFO")
-        
+
         data = await request.json()
         update = Update.de_json(data, telegram_app.bot)
         await telegram_app.process_update(update)
         return {"status": "ok"}
     except Exception as e:
-        logger.log_text(f"Error processing webhook: {str(e)}", severity="ERROR")
+        logger.log_text(f"Error processing webhook: {e!s}", severity="ERROR")
         return {"status": "error", "message": str(e)}
 
 @app.post("/")
