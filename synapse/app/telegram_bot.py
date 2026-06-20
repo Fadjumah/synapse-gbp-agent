@@ -2,8 +2,7 @@ import logging
 import os
 
 from dotenv import load_dotenv
-from google.adk.runners import Runner
-from google.adk.sessions import InMemorySessionService
+from google.adk.runners import InMemoryRunner
 from google.genai import types
 from telegram import Update
 from telegram.ext import (
@@ -25,14 +24,8 @@ TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
 # Setup logging
 logger = logging.getLogger(__name__)
 
-# Initialize Runner and Session Service
-session_service = InMemorySessionService()
-runner = Runner(
-    agent=root_agent,
-    app_name="app",
-    session_service=session_service,
-    auto_create_session=True
-)
+# Initialize InMemoryRunner
+runner = InMemoryRunner(agent=root_agent)
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await context.bot.send_message(chat_id=update.effective_chat.id, text="I'm a bot, please talk to me!")
@@ -43,9 +36,10 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     logger.info(f"Received message from {chat_id}: {user_message}")
 
-    # Invoke the agent using the runner
+    # Invoke the agent using the runner in an SDK-aligned way
     try:
         response_text = ""
+        # Using run_async with standard SDK types for better alignment
         async for event in runner.run_async(
             user_id=chat_id,
             session_id=chat_id,

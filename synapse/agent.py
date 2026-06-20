@@ -14,12 +14,12 @@ runner = InMemoryRunner(synapse_root)
 async def process_user_message(user_id: str, message: str) -> str:
     try:
         session_id = f"session_{user_id}"
-        
+
         # Create input content
         content = Content(role="user", parts=[Part.from_text(text=message)])
-        
+
         response_text = ""
-        
+
         # Iterate through the event stream from the runner
         async for event in runner.run_async(session_id=session_id, input=content):
             # ADK event handling to extract text
@@ -27,7 +27,7 @@ async def process_user_message(user_id: str, message: str) -> str:
                 response_text += event.text
             elif hasattr(event, "content"):
                 response_text += event.content
-        
+
         return response_text if response_text else "I am sorry, I couldn't generate a response."
     except Exception as e:
-        return f"Error processing message: {str(e)}"
+        return f"Error processing message: {e!s}"
