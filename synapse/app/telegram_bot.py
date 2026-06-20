@@ -39,8 +39,11 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     logger.info(f"Received message from {chat_id}: {user_message}")
 
-    # Ensure session exists
-    await session_service.create_session(app_name="app", user_id=chat_id, session_id=session_id)
+    # Ensure session exists (wrap in try/except to ignore already exists)
+    try:
+        await session_service.create_session(app_name="app", user_id=chat_id, session_id=session_id)
+    except Exception:
+        logger.info(f"Session {session_id} already active.")
 
     # Invoke the agent using the runner in an SDK-aligned way
     try:

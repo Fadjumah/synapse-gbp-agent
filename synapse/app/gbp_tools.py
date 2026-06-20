@@ -31,17 +31,22 @@ def get_gbp_credentials():
     return credentials
 
 
-def get_mybusiness_service():
-    """Get the Google Business Profile service."""
+def get_account_management_service():
+    """Get the My Business Account Management v1 service."""
     credentials = get_gbp_credentials()
-    # Attempting to use v1 of businessinformation as it's the current standard
+    return build("mybusinessaccountmanagement", "v1", credentials=credentials)
+
+
+def get_business_information_service():
+    """Get the Google Business Profile Information service."""
+    credentials = get_gbp_credentials()
     return build("mybusinessbusinessinformation", "v1", credentials=credentials)
 
+
 def list_accounts() -> list[dict[str, Any]]:
-    """List all Google Business Profile accounts accessible to the authenticated user/service account."""
+    """List all Google Business Profile accounts accessible."""
     try:
-        service = get_mybusiness_service()
-        # The accounts list call might be different in the new API
+        service = get_account_management_service()
         accounts = service.accounts().list().execute()
         return accounts.get("accounts", [])
     except HttpError as e:
