@@ -240,6 +240,8 @@ class GBPTools:
             "day": int(end_day[8:10]),
         }
 
+        daily_range = {"startDate": start_date, "endDate": end_date}
+
         results = {}
         for metric in metrics:
             response = (
@@ -247,12 +249,7 @@ class GBPTools:
                 .getDailyMetricsTimeSeries(
                     name=perf_location_name,
                     dailyMetric=metric,
-                    dailyRange_startDate_year=start_date["year"],
-                    dailyRange_startDate_month=start_date["month"],
-                    dailyRange_startDate_day=start_date["day"],
-                    dailyRange_endDate_year=end_date["year"],
-                    dailyRange_endDate_month=end_date["month"],
-                    dailyRange_endDate_day=end_date["day"],
+                    dailyRange=daily_range,
                 )
                 .execute()
             )
