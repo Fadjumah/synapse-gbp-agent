@@ -269,9 +269,9 @@ class GBPTools:
         """Gets performance insights for a specific location over a date range.
 
         Args:
-            location_name: The resource name of the location, e.g., 'locations/{locationId}'.
-            start_day: Start day in YYYY-MM-DD format.
-            end_day: End day in YYYY-MM-DD format.
+            location_name: The resource name of the location. Can be in the format 'accounts/{accountId}/locations/{locationId}' or 'locations/{locationId}'.
+            start_day: The start day for the insights in 'YYYY-MM-DD' format.
+            end_day: The end day for the insights in 'YYYY-MM-DD' format.
 
         Returns:
             A dictionary of metric names to their time series data.
@@ -402,41 +402,41 @@ tools = [
     Tool(
         function=gbp_tools_instance.list_accounts,
         name="list_accounts",
-        description="List all Google Business Profile accounts accessible.",
+        description="Lists all accessible Google Business Profile accounts, returning their names and account IDs.",
     ),
     Tool(
         function=gbp_tools_instance.list_locations,
         name="list_locations",
-        description="List all locations for a specific Google Business Profile account.",
+        description="Lists all business locations for a given Google Business Profile account ID.",
     ),
     Tool(
         function=gbp_tools_instance.list_reviews,
         name="list_reviews",
-        description="List reviews for a specific Google Business Profile location.",
+        description="Lists all reviews for a specific business location, including review content and author.",
     ),
     Tool(
         function=gbp_tools_instance.reply_to_review,
         name="reply_to_review",
-        description="Reply to a Google Business Profile review.",
+        description="Posts a public reply to a specific customer review.",
     ),
     Tool(
         function=gbp_tools_instance.create_local_post,
         name="create_local_post",
-        description="Create a local post (Update) on Google Business Profile.",
+        description="Creates a new local post on a business's Google Business Profile. Can optionally include a call-to-action URL and an image.",
     ),
     Tool(
         function=gbp_tools_instance.get_performance_insights,
         name="get_performance_insights",
-        description="Get performance insights for a location.",
+        description="Retrieves performance metrics (e.g., views, clicks) for a business location over a specified date range.",
     ),
     Tool(
         function=gbp_tools_instance.search_google_for_business_id,
         name="search_google_for_business_id",
-        description="Search for a business on Google Maps and return its Place ID.",
+        description="Searches Google for a business by name and address to find its unique Place ID.",
     ),
     Tool(
         function=gbp_tools_instance.upload_media_for_post,
         name="upload_media_for_post",
-        description="Uploads media to a GBP location and returns a media key for use with create_local_post().",
+        description="Uploads an image from a URL to a Google Business Profile location and returns a media key to be used with create_local_post.",
     ),
 ]
