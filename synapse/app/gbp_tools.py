@@ -1,3 +1,4 @@
+from datetime import datetime
 import functools
 import json
 import logging
@@ -229,17 +230,17 @@ class GBPTools:
             "BUSINESS_DIRECTION_REQUESTS",
         ]
 
-        start_date_parts = start_day.split("-")
-        end_date_parts = end_day.split("-")
+        start_dt = datetime.strptime(start_day, "%Y-%m-%d")
+        end_dt = datetime.strptime(end_day, "%Y-%m-%d")
 
         api_params = {
             "name": perf_location_name,
-            "dailyRange_startDate_year": int(start_date_parts[0]),
-            "dailyRange_startDate_month": int(start_date_parts[1]),
-            "dailyRange_startDate_day": int(start_date_parts[2]),
-            "dailyRange_endDate_year": int(end_date_parts[0]),
-            "dailyRange_endDate_month": int(end_date_parts[1]),
-            "dailyRange_endDate_day": int(end_date_parts[2]),
+            "dailyRange_startDate_year": start_dt.year,
+            "dailyRange_startDate_month": start_dt.month,
+            "dailyRange_startDate_day": start_dt.day,
+            "dailyRange_endDate_year": end_dt.year,
+            "dailyRange_endDate_month": end_dt.month,
+            "dailyRange_endDate_day": end_dt.day,
         }
 
         results = {}
