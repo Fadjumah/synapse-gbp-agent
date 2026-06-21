@@ -242,18 +242,18 @@ class GBPTools:
 
         daily_range = {"startDate": start_date, "endDate": end_date}
 
+        body = {"dailyMetrics": metrics, "dailyRange": daily_range}
+        response = (
+            service.locations()
+            .queryDailyMetricsTimeSeries(name=perf_location_name, body=body)
+            .execute()
+        )
+
         results = {}
-        for metric in metrics:
-            response = (
-                service.locations()
-                .getDailyMetricsTimeSeries(
-                    name=perf_location_name,
-                    dailyMetric=metric,
-                    dailyRange=daily_range,
-                )
-                .execute()
-            )
-            results[metric] = response.get("timeSeries", {})
+        for item in response.get("dailyMetricsTimeSeries", []):
+            metric_name = item.get("dailyMetric")
+            if metric_name:
+                results[metric_name] = item.get("timeSeries", {})
 
         return results
 
