@@ -1,58 +1,29 @@
-Phase 1
+# Roadmap
 
-Foundation
-ADK setup
-Gemini integration
-Telegram integration
-Cloud Run deployment
+## Phase 1: Foundation (Completed)
+- ADK setup
+- Gemini integration
+- Robust self-healing tool framework
+- Cloud Run deployment
 
-Phase 2
+## Phase 2: GBP Integration (Current)
+- Reviews management
+- Local posts automation
+- Performance insights reporting
 
-GBP Integration
-Reviews
-Posts
-Insights
-Reporting
+## Phase 3: Memory & Historical Data
+- Firestore integration for historical data persistence
+- Learning system to adapt to performance trends
 
-Phase 3
+## Phase 4: Autonomy
+- Scheduled execution jobs
+- Automated performance-based content optimization
+- Autonomous content publishing
 
-Memory
-Historical data
-Learning system
-Strategic planning
+## Phase 5: Multi-Business Platform
+- Multi-tenant support
+- Customer-facing dashboard
+- Subscription model integration
 
-Phase 4
-
-Autonomy
-Scheduled execution
-Automated optimization
-Autonomous content publishing
-
-Phase 5
-
-Multi-Business Platform
-Multi-tenant support
-Dashboard
-Subscription model
-Ultimate Objective
+## Ultimate Objective
 Build an AI system capable of acting as a dedicated Google Business Profile growth manager that continuously improves local visibility, engagement, reputation, and customer acquisition without requiring constant supervision.
-So A mature Synapse architecture would therefore be:
-Telegram
-↓
-Cloud Run
-↓
-ADK
-↓
-Gemini
-↓
-Firestore (memory)
-↓
-Scheduler (autonomy)
-↓
-Tasks (background jobs)
-↓
-BigQuery (analytics)
-↓
-Secret Manager (credentials)
-↓
-GBP APIs

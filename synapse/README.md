@@ -59,7 +59,22 @@ You can also use features from the [ADK](https://adk.dev/) CLI with `uv run adk`
 | `uv run pytest tests/unit tests/integration` | Run unit and integration tests                                                        |
 | `agents-cli deploy`  | Deploy agent to Cloud Run                                                                   |
 
-## 🛠️ Project Management
+## 🛠️ Tools & Capabilities
+
+The agent interacts with the Google Business Profile (GBP) API using a suite of robust tools, all wrapped in a self-healing exception handling framework to ensure reliability in production environments.
+
+### Available Tools
+- **Account & Location Management**: `list_accounts`, `list_locations`, `get_location_details`, `update_location_data`
+- **Reviews Management**: `list_reviews`, `reply_to_review`, `delete_review_reply`
+- **Posts & Media**: `create_local_post`, `list_local_posts`, `delete_local_post`, `upload_media_for_post`
+- **Performance**: `get_performance_insights`
+- **Questions**: `list_questions`, `answer_question`
+- **Utility**: `search_google_for_business_id`
+
+### Self-Healing Framework
+All tools are wrapped with the `tool_exception_handler` decorator. If a tool fails (e.g., API parameter mismatch, deprecated API call), the framework catches the exception and returns a structured `[TOOL_ERROR]` string directly to the Gemini LLM. This allows the agent to self-diagnose and potentially retry with corrected parameters, rather than crashing the container.
+
+---
 
 | Command | What It Does |
 |---------|--------------|
