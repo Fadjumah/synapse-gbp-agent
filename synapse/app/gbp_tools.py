@@ -26,6 +26,10 @@ def _format_tool_error(
     ]
     if api_response:
         error_details.append(f"api_response: {api_response}")
+
+    error_details.append(
+        "instructions_for_llm: Analyze this traceback. If you passed invalid parameters, please correct your arguments and call the tool again."
+    )
     return "\n".join(error_details)
 
 
