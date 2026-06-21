@@ -240,20 +240,23 @@ class GBPTools:
             "day": int(end_day[8:10]),
         }
 
-        daily_range = {"startDate": start_date, "endDate": end_date}
-
-        body = {"dailyMetrics": metrics, "dailyRange": daily_range}
-        response = (
-            service.locations()
-            .queryDailyMetricsTimeSeries(name=perf_location_name, body=body)
-            .execute()
-        )
-
         results = {}
-        for item in response.get("dailyMetricsTimeSeries", []):
-            metric_name = item.get("dailyMetric")
-            if metric_name:
-                results[metric_name] = item.get("timeSeries", {})
+        for metric in metrics:
+            response = (
+                service.locations()
+                .getDailyMetricsTimeSeries(
+                    name=perf_location_name,
+                    dailyMetric=metric,
+                    dailyRange_startDate_year=start_date["year"],
+                    dailyRange_startDate_month=start_date["month"],
+                    dailyRange_startDate_day=start_date["day"],
+                    dailyRange_endDate_year=end_date["year"],
+                    dailyRange_endDate_month=end_date["month"],
+                    dailyRange_endDate_day=end_date["day"],
+                )
+                .execute()
+            )
+            results[metric] = response.get("timeSeries", {})
 
         return results
 
