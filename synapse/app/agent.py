@@ -1,14 +1,7 @@
 from google.adk.agents.llm_agent import Agent
 from google.adk.apps import App
 
-from app.gbp_tools import (
-    create_local_post,
-    get_performance_insights,
-    list_accounts,
-    list_locations,
-    list_reviews,
-    reply_to_review,
-)
+from app.gbp_tools import tools
 
 root_agent = Agent(
     name="synapse_root",
@@ -26,14 +19,7 @@ You have access to tools to manage Google Business Profile:
 5. Use get_performance_insights to track growth and impact.
 
 Always prioritize activities that improve local visibility, engagement, and reputation.""",
-    tools=[
-        list_accounts,
-        list_locations,
-        list_reviews,
-        reply_to_review,
-        create_local_post,
-        get_performance_insights,
-    ],
+    tools=[tool.run for tool in tools],
 )
 
 app = App(root_agent=root_agent, name="app")
