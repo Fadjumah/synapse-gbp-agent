@@ -394,6 +394,142 @@ class GBPTools:
         )
         return response.get("name")
 
+    @tool_exception_handler
+    def get_location_details(self, location_name: str, read_mask: str) -> dict[str, Any]:
+        """Gets detailed information for a specific location.
+
+        Args:
+            location_name: The resource name of the location, e.g., 'accounts/{accountId}/locations/{locationId}'.
+            read_mask: The fields to return. For example: "name,title,phoneNumbers,userLabels,websiteUri,openingHours". See https://developers.google.com/maps/documentation/business-profile/reference/rest/v1/locations/get#query-parameters for all possible fields.
+
+        Returns:
+            A dictionary representing the location resource.
+        """
+        service = self._build_gbp_service("mybusinessbusinessinformation", "v1")
+        location = (
+            service.locations()
+            .get(name=location_name, readMask=read_mask)
+            .execute()
+        )
+        return location
+
+    @tool_exception_handler
+    def update_location_data(self, location_name: str, update_data: dict[str, Any]) -> dict[str, Any]:
+        """Updates specific fields of a location's data.
+
+        Args:
+            location_name: The resource name of the location, e.g., 'accounts/{accountId}/locations/{locationId}'.
+            update_data: A dictionary with the fields to update. For example: {"websiteUri": "https://new.example.com", "regularHours": {...}}. The keys of this dictionary will be used as the update_mask.
+
+        Returns:
+            A dictionary representing the updated location resource.
+        """
+        service = self._build_gbp_service("mybusinessbusinessinformation", "v1")
+        update_mask = ",".join(update_data.keys())
+        response = (
+            service.locations()
+            .patch(name=location_name, updateMask=update_mask, body=update_data)
+            .execute()
+        )
+        return response
+
+    @tool_exception_handler
+    def list_local_posts(self, location_name: str) -> list[dict[str, Any]]:
+        """Lists all local posts for a specific location.
+
+        Args:
+            location_name: The resource name of the location, e.g., 'accounts/{accountId}/locations/{locationId}'.
+
+        Returns:
+            A list of local post dictionaries.
+        """
+        service = self._build_gbp_service("mybusinessbusinessinformation", "v1")
+        response = (
+            service.accounts()
+            .locations()
+            .localPosts()
+            .list(parent=location_name)
+            .execute()
+        )
+        return response.get("localPosts", [])
+
+    @tool_exception_handler
+    def delete_local_post(self, post_name: str) -> dict[str, Any]:
+        """Deletes a local post.
+
+        Args:
+            post_name: The resource name of the post to delete, e.g., 'accounts/{accountId}/locations/{locationId}/localPosts/{localPostId}'.
+
+        Returns:
+            An empty dictionary upon successful deletion.
+        """
+        service = self._build_gbp_service("mybusinessbusinessinformation", "v1")
+        response = service.accounts().locations().localPosts().delete(name=post_name).execute()
+        return response
+
+    @tool_exception_handler
+    def delete_review_reply(self, review_name: str) -> dict[str, Any]:
+        """Deletes the reply to a review.
+
+        Args:
+            review_name: The resource name of the review whose reply should be deleted, e.g., 'accounts/{accountId}/locations/{locationId}/reviews/{reviewId}'.
+
+        Returns:
+            An empty dictionary upon successful deletion.
+        """
+        service = self._build_gbp_service("mybusinessreviews", "v1")
+        response = (
+            service.accounts()
+            .locations()
+            .reviews()
+            .deleteReply(name=review_name)
+            .execute()
+        )
+        return response
+
+    @tool_exception_handler
+    def list_questions(self, location_name: str) -> list[dict[str, Any]]:
+        """Lists all questions for a specific location.
+
+        Args:
+            location_name: The resource name of the location, e.g., 'accounts/{accountId}/locations/{locationId}'.
+
+        Returns:
+            A list of question dictionaries.
+        """
+        # Note: mybusinessqanda uses 'locations/{locationId}' format.
+        if location_name.startswith("accounts/"):
+            location_id = location_name.split("/")[-1]
+            qna_location_name = f"locations/{location_id}"
+        else:
+            qna_location_name = location_name
+
+        service = self._build_gbp_service("mybusinessqanda", "v1")
+        response = service.locations().questions().list(parent=qna_location_name).execute()
+        return response.get("questions", [])
+
+    @tool_exception_handler
+    def answer_question(self, question_name: str, answer_text: str) -> dict[str, Any]:
+        """Provides an answer to a question.
+
+        Args:
+            question_name: The resource name of the question to answer, e.g., 'locations/{locationId}/questions/{questionId}'.
+            answer_text: The text of the answer.
+
+        Returns:
+            A dictionary representing the answer resource.
+        """
+        service = self._build_gbp_service("mybusinessqanda", "v1")
+        body = {"text": answer_text}
+        response = (
+            service.locations()
+            .questions()
+            .answers()
+            .upsert(parent=question_name, body=body)
+            .execute()
+        )
+        return response
+
 
 gbp_tools_instance = GBPTools()
 
@@ -437,5 +573,40 @@ tools = [
         function=gbp_tools_instance.upload_media_for_post,
         name="upload_media_for_post",
         description="Uploads an image from a URL to a Google Business Profile location and returns a media key to be used with create_local_post.",
+    ),
+    Tool(
+        function=gbp_tools_instance.get_location_details,
+        name="get_location_details",
+        description="Gets detailed business information for a specific location, such as address, phone number, and opening hours.",
+    ),
+    Tool(
+        function=gbp_tools_instance.update_location_data,
+        name="update_location_data",
+        description="Updates core business information for a specific location. Can update fields like website, hours, and phone number.",
+    ),
+    Tool(
+        function=gbp_tools_instance.list_local_posts,
+        name="list_local_posts",
+        description="Lists all historical local posts for a business location.",
+    ),
+    Tool(
+        function=gbp_tools_instance.delete_local_post,
+        name="delete_local_post",
+        description="Deletes a specific local post from a business's profile.",
+    ),
+    Tool(
+        function=gbp_tools_instance.delete_review_reply,
+        name="delete_review_reply",
+        description="Deletes a previously posted reply to a customer review.",
+    ),
+    Tool(
+        function=gbp_tools_instance.list_questions,
+        name="list_questions",
+        description="Lists all customer questions for a business location.",
+    ),
+    Tool(
+        function=gbp_tools_instance.answer_question,
+        name="answer_question",
+        description="Posts an answer to a customer's question on the business profile.",
     ),
 ]

@@ -17,6 +17,10 @@ You have access to tools to manage Google Business Profile:
 3. Use reply_to_review to engage with customers.
 4. Use create_local_post to share updates, offers, and events.
 5. Use get_performance_insights to track growth and impact.
+6. Use get_location_details to retrieve and verify current business information like hours and phone number.
+7. Use update_location_data to correct or update business details.
+8. Use list_questions and answer_question to manage the Q&A section.
+9. You can also manage posts and review replies by listing, deleting, or updating them.
 
 Always prioritize activities that improve local visibility, engagement, and reputation.""",
     tools=[tool.run for tool in tools],
