@@ -135,6 +135,19 @@ def get_gbp_credentials() -> Credentials:
 class GBPTools:
     """A collection of tools to interact with the Google Business Profile API."""
 
+    _PERFORMANCE_METRICS = [
+        "CALL_CLICKS",
+        "WEBSITE_CLICKS",
+        "BUSINESS_IMPRESSIONS_DESKTOP_MAPS",
+        "BUSINESS_IMPRESSIONS_DESKTOP_SEARCH",
+        "BUSINESS_IMPRESSIONS_MOBILE_MAPS",
+        "BUSINESS_IMPRESSIONS_MOBILE_SEARCH",
+        "BUSINESS_CONVERSATIONS",
+        "BUSINESS_BOOKINGS",
+        "BUSINESS_FOOD_ORDERS",
+        "BUSINESS_DIRECTION_REQUESTS",
+    ]
+
     def _build_gbp_service(self, service_name: str, version: str) -> Any:
         """Build a Google API service object.
 
@@ -289,20 +302,6 @@ class GBPTools:
 
         service = self._build_gbp_service("businessprofileperformance", "v1")
 
-        # Example metrics
-        metrics = [
-            "CALL_CLICKS",
-            "WEBSITE_CLICKS",
-            "BUSINESS_IMPRESSIONS_DESKTOP_MAPS",
-            "BUSINESS_IMPRESSIONS_DESKTOP_SEARCH",
-            "BUSINESS_IMPRESSIONS_MOBILE_MAPS",
-            "BUSINESS_IMPRESSIONS_MOBILE_SEARCH",
-            "BUSINESS_CONVERSATIONS",
-            "BUSINESS_BOOKINGS",
-            "BUSINESS_FOOD_ORDERS",
-            "BUSINESS_DIRECTION_REQUESTS",
-        ]
-
         start_dt = datetime.strptime(start_day, "%Y-%m-%d")
         end_dt = datetime.strptime(end_day, "%Y-%m-%d")
 
@@ -320,7 +319,7 @@ class GBPTools:
         }
 
         results = {}
-        for metric in metrics:
+        for metric in self._PERFORMANCE_METRICS:
             response = (
                 service.locations()
                 .getDailyMetricsTimeSeries(dailyMetric=metric, **api_params)
