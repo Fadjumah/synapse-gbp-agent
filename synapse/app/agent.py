@@ -3,9 +3,11 @@ import os
 from google.adk.agents.llm_agent import Agent
 from google.adk.apps import App
 
+from app.app_utils.memory_manager import MemoryManager
 from app.gbp_tools import tools
 
 target_business = os.getenv("TARGET_BUSINESS_NAME", "Eritage ENT Care - Entebbe")
+memory = MemoryManager()
 
 root_agent = Agent(
     name="synapse_root",
@@ -29,5 +31,13 @@ You have access to tools to manage Google Business Profile:
 Always prioritize activities that improve local visibility, engagement, and reputation.""",
     tools=[tool.run for tool in tools],
 )
+
+def persist_interaction(request: Any, response: Any):
+    # This assumes a context exists where 'location_id' is available,
+    # often passed in the request metadata in ADK applications.
+    location_id = request.metadata.get("location_id", "default_location")
+    memory.save_interaction(location_id, request.text, response.text)
+
+root_agent.register_response_callback(persist_interaction)
 
 app = App(root_agent=root_agent, name="app")
