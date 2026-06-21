@@ -187,9 +187,8 @@ def get_performance_insights(
 
         # Example metrics
         metrics = [
-            "CALLS",
+            "CALL_CLICKS",
             "WEBSITE_CLICKS",
-            "DIRECTION_REQUESTS",
             "BUSINESS_IMPRESSIONS_DESKTOP_MAPS",
             "BUSINESS_IMPRESSIONS_DESKTOP_SEARCH",
             "BUSINESS_IMPRESSIONS_MOBILE_MAPS",
@@ -218,8 +217,12 @@ def get_performance_insights(
                 .getDailyMetricsTimeSeries(
                     name=perf_location_name,
                     dailyMetric=metric,
-                    dailyRange_startDate=start_date,
-                    dailyRange_endDate=end_date,
+                    dailyRange_startDate_year=start_date['year'],
+                    dailyRange_startDate_month=start_date['month'],
+                    dailyRange_startDate_day=start_date['day'],
+                    dailyRange_endDate_year=end_date['year'],
+                    dailyRange_endDate_month=end_date['month'],
+                    dailyRange_endDate_day=end_date['day'],
                 )
                 .execute()
             )
