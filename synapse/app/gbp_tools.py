@@ -533,6 +533,11 @@ class GBPTools:
 
 gbp_tools_instance = GBPTools()
 
+def __getattr__(name):
+    if hasattr(gbp_tools_instance, name):
+        return getattr(gbp_tools_instance, name)
+    raise AttributeError(f"module {__name__} has no attribute {name}")
+
 tools = [
     Tool(
         function=gbp_tools_instance.list_accounts,
