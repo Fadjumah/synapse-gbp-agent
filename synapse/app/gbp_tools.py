@@ -20,7 +20,7 @@ def _format_tool_error(
         "[TOOL_ERROR]",
         f"tool_name: {tool_name}",
         f"exception_type: {type(e).__name__}",
-        f"error_message: {str(e)}",
+        f"error_details: {str(e)}",
         f"tool_args: {args}",
         f"tool_kwargs: {kwargs}",
     ]
