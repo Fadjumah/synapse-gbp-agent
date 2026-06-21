@@ -1,4 +1,5 @@
 import functools
+import json
 import logging
 import os
 from typing import Any, Callable
@@ -12,23 +13,41 @@ logger = logging.getLogger(__name__)
 
 
 def gbp_tool_error_handler(func):
-    """A decorator to handle errors in GBP tool functions."""
+    """
+    A decorator to handle errors in GBP tool functions, providing a feedback loop to the agent.
+    """
 
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
         try:
             return func(*args, **kwargs)
         except HttpError as e:
-            logger.error(f"Error in {func.__name__}: {e}")
-            # For functions that should return a list on failure
+            logger.error(f"API Error in {func.__name__}: {e}")
             if "list" in func.__name__:
                 return []
-            return {"error": str(e)}
+
+            error_message = f"Tool '{func.__name__}' failed with an API error."
+            try:
+                error_content = json.loads(e.content.decode("utf-8"))
+                if "error" in error_content and "message" in error_content["error"]:
+                    error_message += (
+                        f" API Response: {error_content['error']['message']}"
+                    )
+                else:
+                    error_message += f" Reason: {e.reason}"
+            except Exception:
+                error_message += f" Reason: {e.reason}"
+
+            return {"error": error_message, "tool_name": func.__name__}
         except Exception as e:
-            logger.error(f"An unexpected error occurred in {func.__name__}: {e}")
+            logger.error(f"Unexpected Error in {func.__name__}: {e}")
             if "list" in func.__name__:
                 return []
-            return {"error": str(e)}
+            return {
+                "error": f"Tool '{func.__name__}' failed unexpectedly.",
+                "details": str(e),
+                "tool_name": func.__name__,
+            }
 
     return wrapper
 
