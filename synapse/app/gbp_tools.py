@@ -14,9 +14,20 @@ logger = logging.getLogger(__name__)
 
 
 def _format_tool_error(
-    tool_name: str, e: Exception, args: tuple, kwargs: dict, api_response: str = None
+    tool_name: str, e: Exception, args: tuple, kwargs: dict, api_response: str | None = None
 ) -> str:
-    """Format a tool error into a detailed string for the LLM."""
+    """Formats a tool error into a detailed string for the LLM.
+
+    Args:
+        tool_name: The name of the tool that failed.
+        e: The exception that was raised.
+        args: The positional arguments passed to the tool.
+        kwargs: The keyword arguments passed to the tool.
+        api_response: The API response content if the error was an HttpError.
+
+    Returns:
+        A formatted multi-line string with error details for the LLM.
+    """
     error_details = [
         "[TOOL_ERROR]",
         f"tool_name: {tool_name}",
@@ -34,11 +45,18 @@ def _format_tool_error(
     return "\n".join(error_details)
 
 
-def tool_exception_handler(func):
-    """A decorator to handle exceptions in tool functions."""
+def tool_exception_handler(func: Callable) -> Callable:
+    """A decorator to handle exceptions in tool functions, formatting them for the LLM.
+
+    Args:
+        func: The tool function to wrap.
+
+    Returns:
+        The wrapped function with exception handling.
+    """
 
     @functools.wraps(func)
-    def wrapper(*args, **kwargs):
+    def wrapper(*args: Any, **kwargs: Any) -> Any:
         tool_name = func.__name__
         try:
             return func(*args, **kwargs)
@@ -63,14 +81,21 @@ def tool_exception_handler(func):
 
 
 class Tool:
-    """A class to represent a tool that the agent can use."""
+    """A class to represent a tool that the agent can use.
 
-    def __init__(self, function: Callable, name: str, description: str):
+    Attributes:
+        function: The callable function that implements the tool's logic.
+        name: The name of the tool, as exposed to the LLM.
+        description: A description of what the tool does.
+        run: The wrapped tool function with a name and docstring for the LLM.
+    """
+
+    def __init__(self, function: Callable[..., Any], name: str, description: str):
         self.function = function
         self.name = name
         self.description = description
 
-        def tool_runner(*args, **kwargs):
+        def tool_runner(*args: Any, **kwargs: Any) -> Any:
             return self.function(*args, **kwargs)
 
         tool_runner.__name__ = self.name
@@ -78,8 +103,16 @@ class Tool:
         self.run = tool_runner
 
 
-def get_gbp_credentials():
-    """Get GBP credentials using OAuth2 refresh token if available, else default credentials."""
+def get_gbp_credentials() -> Credentials:
+    """Get GBP credentials for Google Business Profile API.
+
+    Uses OAuth2 refresh token flow if GOOGLE_REFRESH_TOKEN, GOOGLE_CLIENT_ID,
+    and GOOGLE_CLIENT_SECRET environment variables are set. Otherwise, falls
+    back to Google Application Default Credentials.
+
+    Returns:
+        A google.oauth2.credentials.Credentials object.
+    """
     refresh_token = os.getenv("GOOGLE_REFRESH_TOKEN")
     client_id = os.getenv("GOOGLE_CLIENT_ID")
     client_secret = os.getenv("GOOGLE_CLIENT_SECRET")
@@ -103,7 +136,18 @@ class GBPTools:
     """A collection of tools to interact with the Google Business Profile API."""
 
     def _build_gbp_service(self, service_name: str, version: str) -> Any:
-        """Build a Google Business Profile service."""
+        """Build a Google API service object.
+
+        Args:
+            service_name: The name of the service to build (e.g., 'mybusinessbusinessinformation').
+            version: The version of the service (e.g., 'v1').
+
+        Returns:
+            A Google API client service object.
+
+        Raises:
+            ValueError: If a deprecated service and version are requested.
+        """
         if service_name == "mybusiness" and version == "v4":
             raise ValueError(
                 "The 'mybusiness' v4 API is deprecated and no longer available. "
@@ -114,18 +158,24 @@ class GBPTools:
 
     @tool_exception_handler
     def list_accounts(self) -> list[dict[str, Any]]:
-        """List all Google Business Profile accounts accessible."""
+        """Lists all Google Business Profile accounts accessible to the authenticated user.
+
+        Returns:
+            A list of account dictionaries, or an empty list if none are found.
+        """
         service = self._build_gbp_service("mybusinessaccountmanagement", "v1")
         accounts = service.accounts().list().execute()
         return accounts.get("accounts", [])
 
     @tool_exception_handler
     def list_locations(self, account_name: str) -> list[dict[str, Any]]:
-        """
-        List all locations for a specific Google Business Profile account.
+        """Lists all locations for a specific Google Business Profile account.
 
         Args:
-            account_name: The resource name of the account, e.g., 'accounts/{accountId}'
+            account_name: The resource name of the account, e.g., 'accounts/{accountId}'.
+
+        Returns:
+            A list of location dictionaries, or an empty list if none are found.
         """
         service = self._build_gbp_service("mybusinessbusinessinformation", "v1")
         locations = (
@@ -138,11 +188,13 @@ class GBPTools:
 
     @tool_exception_handler
     def list_reviews(self, location_name: str) -> list[dict[str, Any]]:
-        """
-        List reviews for a specific Google Business Profile location.
+        """Lists reviews for a specific Google Business Profile location.
 
         Args:
-            location_name: The resource name of the location, e.g., 'accounts/{accountId}/locations/{locationId}'
+            location_name: The resource name of the location, e.g., 'accounts/{accountId}/locations/{locationId}'.
+
+        Returns:
+            A list of review dictionaries, or an empty list if none are found.
         """
         service = self._build_gbp_service("mybusinessreviews", "v1")
         reviews = (
@@ -152,12 +204,14 @@ class GBPTools:
 
     @tool_exception_handler
     def reply_to_review(self, review_name: str, reply_text: str) -> dict[str, Any]:
-        """
-        Reply to a Google Business Profile review.
+        """Replies to a Google Business Profile review.
 
         Args:
-            review_name: The resource name of the review, e.g., 'accounts/{accountId}/locations/{locationId}/reviews/{reviewId}'
+            review_name: The resource name of the review, e.g., 'accounts/{accountId}/locations/{locationId}/reviews/{reviewId}'.
             reply_text: The text of the reply.
+
+        Returns:
+            A dictionary representing the updated review reply resource.
         """
         service = self._build_gbp_service("mybusinessreviews", "v1")
         body = {"comment": reply_text}
@@ -178,14 +232,16 @@ class GBPTools:
         call_to_action_url: str | None = None,
         media_key: str | None = None,
     ) -> dict[str, Any]:
-        """
-        Create a local post (Update) on Google Business Profile.
+        """Creates a local post (Update) on Google Business Profile.
 
         Args:
-            location_name: The resource name of the location, e.g., 'accounts/{accountId}/locations/{locationId}'
+            location_name: The resource name of the location, e.g., 'accounts/{accountId}/locations/{locationId}'.
             summary: The content of the post.
             call_to_action_url: Optional URL for a 'LEARN_MORE' button.
-            media_key: Optional media key for an image to include in the post.
+            media_key: Optional media key from `upload_media_for_post` to include an image.
+
+        Returns:
+            A dictionary representing the created post resource.
         """
         service = self._build_gbp_service("mybusinessbusinessinformation", "v1")
         body = {"languageCode": "en-US", "summary": summary}
@@ -210,13 +266,18 @@ class GBPTools:
     def get_performance_insights(
         self, location_name: str, start_day: str, end_day: str
     ) -> dict[str, Any]:
-        """
-        Get performance insights for a location.
+        """Gets performance insights for a specific location over a date range.
 
         Args:
-            location_name: The resource name of the location, e.g., 'locations/{locationId}'
+            location_name: The resource name of the location, e.g., 'locations/{locationId}'.
             start_day: Start day in YYYY-MM-DD format.
             end_day: End day in YYYY-MM-DD format.
+
+        Returns:
+            A dictionary of metric names to their time series data.
+
+        Raises:
+            ValueError: If start_day is after end_day.
         """
         # Note: businessprofileperformance uses a different location name format: 'locations/{locationId}'
         # If location_name is 'accounts/{acc}/locations/{loc}', we need to strip the accounts part.
@@ -273,12 +334,17 @@ class GBPTools:
     def search_google_for_business_id(
         self, business_name: str, address: str
     ) -> dict[str, Any]:
-        """
-        Search for a business on Google Maps and return its Place ID.
+        """Searches for a business on Google Maps and returns its Place ID.
+
+        Uses the Places API to find a business based on its name and address.
 
         Args:
             business_name: The name of the business.
             address: The address of the business.
+
+        Returns:
+            A dictionary containing the place_id, name, and formatted_address,
+            or an error dictionary if no business is found.
         """
         api_key = os.getenv("GOOGLE_API_KEY")
         if not api_key:
@@ -310,15 +376,14 @@ class GBPTools:
 
     @tool_exception_handler
     def upload_media_for_post(self, location_name: str, media_url: str) -> str:
-        """
-        Uploads media to a GBP location and returns a media key for use with create_local_post().
+        """Uploads media to a GBP location for use in a local post.
 
         Args:
-            location_name: The resource name of the location, e.g., 'accounts/{accountId}/locations/{locationId}'
-            media_url: The URL of the media to upload.
+            location_name: The resource name of the location, e.g., 'accounts/{accountId}/locations/{locationId}'.
+            media_url: The publicly accessible URL of the media to upload.
 
         Returns:
-            The resource name of the uploaded media item (media_key).
+            The resource name of the uploaded media item (i.e., the media_key).
         """
         service = self._build_gbp_service("mybusinessbusinessinformation", "v1")
         body = {"mediaFormat": "PHOTO", "sourceUrl": media_url}
