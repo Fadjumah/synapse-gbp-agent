@@ -57,11 +57,10 @@ def list_accounts() -> list[dict[str, Any]]:
         return []
 
 
-def get_mybusiness_v4_service():
-    """Get the Google My Business v4 service (for reviews and posts)."""
-    # NOTE: This API is deprecated, should be updated.
+def get_reviews_service():
+    """Get the My Business Reviews v1 service."""
     credentials = get_gbp_credentials()
-    return build("mybusiness", "v4", credentials=credentials, cache_discovery=False)
+    return build("mybusinessreviews", "v1", credentials=credentials, cache_discovery=False)
 
 
 def list_locations(account_name: str) -> list[dict[str, Any]]:
@@ -96,7 +95,7 @@ def list_reviews(location_name: str) -> list[dict[str, Any]]:
         location_name: The resource name of the location, e.g., 'accounts/{accountId}/locations/{locationId}'
     """
     try:
-        service = get_mybusiness_v4_service()
+        service = get_reviews_service()
         reviews = (
             service.accounts().locations().reviews().list(parent=location_name).execute()
         )
@@ -118,7 +117,7 @@ def reply_to_review(review_name: str, reply_text: str) -> dict[str, Any]:
         reply_text: The text of the reply.
     """
     try:
-        service = get_mybusiness_v4_service()
+        service = get_reviews_service()
         body = {"comment": reply_text}
         response = (
             service.accounts()
@@ -148,12 +147,12 @@ def create_local_post(
         call_to_action_url: Optional URL for a 'LEARN_MORE' button.
     """
     try:
-        service = get_mybusiness_v4_service()
-        body = {"languageCode": "en-US", "summary": summary, "topicType": "STANDARD"}
+        service = get_business_information_service()
+        body = {"languageCode": "en-US", "summary": summary}
         if call_to_action_url:
             body["callToAction"] = {
                 "actionType": "LEARN_MORE",
-                "url": call_to_action_url,
+                "uri": call_to_action_url,
             }
 
         response = (
