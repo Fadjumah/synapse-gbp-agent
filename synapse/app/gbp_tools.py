@@ -104,6 +104,11 @@ class GBPTools:
 
     def _build_gbp_service(self, service_name: str, version: str) -> Any:
         """Build a Google Business Profile service."""
+        if service_name == "mybusiness" and version == "v4":
+            raise ValueError(
+                "The 'mybusiness' v4 API is deprecated and no longer available. "
+                "Please use modern v1 APIs like 'mybusinessbusinessinformation' or 'mybusinessreviews'."
+            )
         credentials = get_gbp_credentials()
         return build(service_name, version, credentials=credentials, cache_discovery=False)
 
