@@ -229,31 +229,24 @@ class GBPTools:
             "BUSINESS_DIRECTION_REQUESTS",
         ]
 
-        start_date = {
-            "year": int(start_day[:4]),
-            "month": int(start_day[5:7]),
-            "day": int(start_day[8:10]),
-        }
-        end_date = {
-            "year": int(end_day[:4]),
-            "month": int(end_day[5:7]),
-            "day": int(end_day[8:10]),
+        start_date_parts = start_day.split("-")
+        end_date_parts = end_day.split("-")
+
+        api_params = {
+            "name": perf_location_name,
+            "dailyRange_startDate_year": int(start_date_parts[0]),
+            "dailyRange_startDate_month": int(start_date_parts[1]),
+            "dailyRange_startDate_day": int(start_date_parts[2]),
+            "dailyRange_endDate_year": int(end_date_parts[0]),
+            "dailyRange_endDate_month": int(end_date_parts[1]),
+            "dailyRange_endDate_day": int(end_date_parts[2]),
         }
 
         results = {}
         for metric in metrics:
             response = (
                 service.locations()
-                .getDailyMetricsTimeSeries(
-                    name=perf_location_name,
-                    dailyMetric=metric,
-                    dailyRange_startDate_year=start_date["year"],
-                    dailyRange_startDate_month=start_date["month"],
-                    dailyRange_startDate_day=start_date["day"],
-                    dailyRange_endDate_year=end_date["year"],
-                    dailyRange_endDate_month=end_date["month"],
-                    dailyRange_endDate_day=end_date["day"],
-                )
+                .getDailyMetricsTimeSeries(dailyMetric=metric, **api_params)
                 .execute()
             )
             results[metric] = response.get("timeSeries", {})
