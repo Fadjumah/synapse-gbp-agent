@@ -12,6 +12,23 @@ from googleapiclient.errors import HttpError
 logger = logging.getLogger(__name__)
 
 
+def _format_tool_error(
+    tool_name: str, e: Exception, args: tuple, kwargs: dict, api_response: str = None
+) -> str:
+    """Format a tool error into a detailed string for the LLM."""
+    error_details = [
+        "[TOOL_ERROR]",
+        f"tool_name: {tool_name}",
+        f"exception_type: {type(e).__name__}",
+        f"error_message: {str(e)}",
+        f"tool_args: {args}",
+        f"tool_kwargs: {kwargs}",
+    ]
+    if api_response:
+        error_details.append(f"api_response: {api_response}")
+    return "\n".join(error_details)
+
+
 def tool_exception_handler(func):
     """A decorator to handle exceptions in tool functions."""
 
@@ -20,28 +37,22 @@ def tool_exception_handler(func):
         tool_name = func.__name__
         try:
             return func(*args, **kwargs)
+        except HttpError as e:
+            logger.error(f"API Error in {tool_name}: {e}")
+            try:
+                api_response_obj = json.loads(e.content.decode("utf-8"))
+                api_response_str = json.dumps(api_response_obj)
+            except (json.JSONDecodeError, UnicodeDecodeError):
+                api_response_str = (
+                    "Unparseable content - "
+                    f"{e.content.decode('utf-8', errors='ignore')}"
+                )
+            return _format_tool_error(
+                tool_name, e, args, kwargs, api_response=api_response_str
+            )
         except Exception as e:
-            logger.error(f"Error in {tool_name}: {e}")
-
-            error_details = [
-                "[TOOL_ERROR]",
-                f"tool_name: {tool_name}",
-                f"exception_type: {type(e).__name__}",
-                f"error_message: {str(e)}",
-                f"tool_args: {args}",
-                f"tool_kwargs: {kwargs}",
-            ]
-
-            if isinstance(e, HttpError):
-                try:
-                    api_response = json.loads(e.content.decode("utf-8"))
-                    error_details.append(f"api_response: {json.dumps(api_response)}")
-                except (json.JSONDecodeError, UnicodeDecodeError):
-                    error_details.append(
-                        "api_response: Unparseable content - "
-                        f"{e.content.decode('utf-8', errors='ignore')}"
-                    )
-            return "\n".join(error_details)
+            logger.error(f"Unexpected Error in {tool_name}: {e}")
+            return _format_tool_error(tool_name, e, args, kwargs)
 
     return wrapper
 
