@@ -20,33 +20,28 @@ def tool_exception_handler(func):
         tool_name = func.__name__
         try:
             return func(*args, **kwargs)
-        except HttpError as e:
-            logger.error(f"API Error in {tool_name}: {e}")
-            if "list" in tool_name:
-                return []
-
-            error_message = f"Tool '{tool_name}' failed with an API error."
-            try:
-                error_content = json.loads(e.content.decode("utf-8"))
-                if "error" in error_content and "message" in error_content["error"]:
-                    error_message += (
-                        f" API Response: {error_content['error']['message']}"
-                    )
-                else:
-                    error_message += f" Reason: {e.reason}"
-            except Exception:
-                error_message += f" Reason: {e.reason}"
-
-            return {"error": error_message, "tool_name": tool_name}
         except Exception as e:
-            logger.error(f"Unexpected Error in {tool_name}: {e}")
-            if "list" in tool_name:
-                return []
-            return {
-                "error": f"Tool '{tool_name}' failed unexpectedly.",
-                "details": str(e),
-                "tool_name": tool_name,
-            }
+            logger.error(f"Error in {tool_name}: {e}")
+
+            error_details = [
+                "[TOOL_ERROR]",
+                f"tool_name: {tool_name}",
+                f"exception_type: {type(e).__name__}",
+                f"error_message: {str(e)}",
+                f"tool_args: {args}",
+                f"tool_kwargs: {kwargs}",
+            ]
+
+            if isinstance(e, HttpError):
+                try:
+                    api_response = json.loads(e.content.decode("utf-8"))
+                    error_details.append(f"api_response: {json.dumps(api_response)}")
+                except (json.JSONDecodeError, UnicodeDecodeError):
+                    error_details.append(
+                        "api_response: Unparseable content - "
+                        f"{e.content.decode('utf-8', errors='ignore')}"
+                    )
+            return "\n".join(error_details)
 
     return wrapper
 
