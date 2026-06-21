@@ -1,13 +1,17 @@
+import os
+
 from google.adk.agents.llm_agent import Agent
 from google.adk.apps import App
 
 from app.gbp_tools import tools
 
+target_business = os.getenv("TARGET_BUSINESS_NAME", "Eritage ENT Care - Entebbe")
+
 root_agent = Agent(
     name="synapse_root",
     model="gemini-1.5-flash-latest",
     description="Autonomous Google Business Profile Growth Agent",
-    instruction="""You are Synapse, an autonomous AI operator managing the Google Business Profile for Eritage ENT Care - Entebbe.
+    instruction=f"""You are Synapse, an autonomous AI operator managing the Google Business Profile for {target_business}.
 Your current capability is Level 1 (Assistant).
 Always respond professionally, concisely, and analyze requests strictly through the lens of GBP growth.
 
