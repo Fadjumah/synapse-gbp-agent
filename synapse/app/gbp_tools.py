@@ -167,7 +167,11 @@ class GBPTools:
 
     @tool_exception_handler
     def create_local_post(
-        self, location_name: str, summary: str, call_to_action_url: str | None = None
+        self,
+        location_name: str,
+        summary: str,
+        call_to_action_url: str | None = None,
+        media_key: str | None = None,
     ) -> dict[str, Any]:
         """
         Create a local post (Update) on Google Business Profile.
@@ -176,6 +180,7 @@ class GBPTools:
             location_name: The resource name of the location, e.g., 'accounts/{accountId}/locations/{locationId}'
             summary: The content of the post.
             call_to_action_url: Optional URL for a 'LEARN_MORE' button.
+            media_key: Optional media key for an image to include in the post.
         """
         service = self._build_gbp_service("mybusinessbusinessinformation", "v1")
         body = {"languageCode": "en-US", "summary": summary}
@@ -184,6 +189,8 @@ class GBPTools:
                 "actionType": "LEARN_MORE",
                 "uri": call_to_action_url,
             }
+        if media_key:
+            body["media"] = [{"mediaFormat": "PHOTO", "googleMediaId": media_key}]
 
         response = (
             service.accounts()
@@ -257,6 +264,67 @@ class GBPTools:
 
         return results
 
+    @tool_exception_handler
+    def search_google_for_business_id(
+        self, business_name: str, address: str
+    ) -> dict[str, Any]:
+        """
+        Search for a business on Google Maps and return its Place ID.
+
+        Args:
+            business_name: The name of the business.
+            address: The address of the business.
+        """
+        api_key = os.getenv("GOOGLE_API_KEY")
+        if not api_key:
+            raise ValueError("GOOGLE_API_KEY environment variable not set.")
+
+        service = build("places", "v1", developerKey=api_key, cache_discovery=False)
+        response = (
+            service.places()
+            .findPlaceFromText(
+                body={
+                    "text": f"{business_name}, {address}",
+                },
+                fields="places.id,places.displayName,places.formattedAddress",
+            )
+            .execute()
+        )
+
+        candidates = response.get("places", [])
+        if not candidates:
+            return {"error": "No business found with that name and address."}
+
+        first_candidate = candidates[0]
+        # The v1 API returns fields with different names. We remap them for compatibility.
+        return {
+            "place_id": first_candidate.get("id"),
+            "name": first_candidate.get("displayName", {}).get("text"),
+            "formatted_address": first_candidate.get("formattedAddress"),
+        }
+
+    @tool_exception_handler
+    def upload_media_for_post(self, location_name: str, media_url: str) -> str:
+        """
+        Uploads media to a GBP location and returns a media key for use with create_local_post().
+
+        Args:
+            location_name: The resource name of the location, e.g., 'accounts/{accountId}/locations/{locationId}'
+            media_url: The URL of the media to upload.
+
+        Returns:
+            The resource name of the uploaded media item (media_key).
+        """
+        service = self._build_gbp_service("mybusinessbusinessinformation", "v1")
+        body = {"mediaFormat": "PHOTO", "sourceUrl": media_url}
+        response = (
+            service.locations()
+            .media()
+            .create(parent=location_name, body=body)
+            .execute()
+        )
+        return response.get("name")
+
 
 gbp_tools_instance = GBPTools()
 
@@ -290,5 +358,15 @@ tools = [
         function=gbp_tools_instance.get_performance_insights,
         name="get_performance_insights",
         description="Get performance insights for a location.",
+    ),
+    Tool(
+        function=gbp_tools_instance.search_google_for_business_id,
+        name="search_google_for_business_id",
+        description="Search for a business on Google Maps and return its Place ID.",
+    ),
+    Tool(
+        function=gbp_tools_instance.upload_media_for_post,
+        name="upload_media_for_post",
+        description="Uploads media to a GBP location and returns a media key for use with create_local_post().",
     ),
 ]
