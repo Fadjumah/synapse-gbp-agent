@@ -52,6 +52,9 @@ def list_accounts() -> list[dict[str, Any]]:
     except HttpError as e:
         logger.error(f"Error listing accounts: {e}")
         return []
+    except Exception as e:
+        logger.error(f"An unexpected error occurred while listing accounts: {e}")
+        return []
 
 
 def get_mybusiness_v4_service():
@@ -80,6 +83,9 @@ def list_locations(account_name: str) -> list[dict[str, Any]]:
     except HttpError as e:
         logger.error(f"Error listing locations: {e}")
         return []
+    except Exception as e:
+        logger.error(f"An unexpected error occurred while listing locations: {e}")
+        return []
 
 
 def list_reviews(location_name: str) -> list[dict[str, Any]]:
@@ -97,6 +103,9 @@ def list_reviews(location_name: str) -> list[dict[str, Any]]:
         return reviews.get("reviews", [])
     except HttpError as e:
         logger.error(f"Error listing reviews: {e}")
+        return []
+    except Exception as e:
+        logger.error(f"An unexpected error occurred while listing reviews: {e}")
         return []
 
 
@@ -121,6 +130,9 @@ def reply_to_review(review_name: str, reply_text: str) -> dict[str, Any]:
         return response
     except HttpError as e:
         logger.error(f"Error replying to review: {e}")
+        return {"error": str(e)}
+    except Exception as e:
+        logger.error(f"An unexpected error occurred while replying to review: {e}")
         return {"error": str(e)}
 
 
@@ -154,6 +166,9 @@ def create_local_post(
         return response
     except HttpError as e:
         logger.error(f"Error creating post: {e}")
+        return {"error": str(e)}
+    except Exception as e:
+        logger.error(f"An unexpected error occurred while creating post: {e}")
         return {"error": str(e)}
 
 
@@ -231,4 +246,9 @@ def get_performance_insights(
         return results
     except HttpError as e:
         logger.error(f"Error getting performance insights: {e}")
+        return {"error": str(e)}
+    except Exception as e:
+        logger.error(
+            f"An unexpected error occurred while getting performance insights: {e}"
+        )
         return {"error": str(e)}
