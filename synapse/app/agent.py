@@ -5,7 +5,7 @@ from app.gbp_tools import tools
 
 root_agent = Agent(
     name="synapse_root",
-    model="gemini-3.5-flash",
+    model="gemini-1.5-flash-latest",
     description="Autonomous Google Business Profile Growth Agent",
     instruction="""You are Synapse, an autonomous AI operator managing the Google Business Profile for Eritage ENT Care - Entebbe.
 Your current capability is Level 1 (Assistant).
