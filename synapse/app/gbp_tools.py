@@ -233,6 +233,9 @@ class GBPTools:
         start_dt = datetime.strptime(start_day, "%Y-%m-%d")
         end_dt = datetime.strptime(end_day, "%Y-%m-%d")
 
+        if start_dt > end_dt:
+            raise ValueError("start_day cannot be after end_day")
+
         api_params = {
             "name": perf_location_name,
             "dailyRange_startDate_year": start_dt.year,
