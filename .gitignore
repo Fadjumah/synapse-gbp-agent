@@ -3,3 +3,19 @@ venv/
 __pycache__/
 .env
 .aider*
+
+# ADK build artifacts
+**/.adk/
+
+# Gemini ignore file
+**/.geminiignore
+
+# Terraform state files
+*.tfstate
+*.tfstate.*
+
+# Local test/repro scripts
+synapse/repro_issue.py
+
+# Mis-created directories
+synapse/synapse/
