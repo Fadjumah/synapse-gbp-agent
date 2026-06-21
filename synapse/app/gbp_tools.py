@@ -1,3 +1,4 @@
+import functools
 import json
 import logging
 import os
@@ -9,6 +10,45 @@ from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 
 logger = logging.getLogger(__name__)
+
+
+def tool_exception_handler(func):
+    """A decorator to handle exceptions in tool functions."""
+
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        tool_name = func.__name__
+        try:
+            return func(*args, **kwargs)
+        except HttpError as e:
+            logger.error(f"API Error in {tool_name}: {e}")
+            if "list" in tool_name:
+                return []
+
+            error_message = f"Tool '{tool_name}' failed with an API error."
+            try:
+                error_content = json.loads(e.content.decode("utf-8"))
+                if "error" in error_content and "message" in error_content["error"]:
+                    error_message += (
+                        f" API Response: {error_content['error']['message']}"
+                    )
+                else:
+                    error_message += f" Reason: {e.reason}"
+            except Exception:
+                error_message += f" Reason: {e.reason}"
+
+            return {"error": error_message, "tool_name": tool_name}
+        except Exception as e:
+            logger.error(f"Unexpected Error in {tool_name}: {e}")
+            if "list" in tool_name:
+                return []
+            return {
+                "error": f"Tool '{tool_name}' failed unexpectedly.",
+                "details": str(e),
+                "tool_name": tool_name,
+            }
+
+    return wrapper
 
 
 class Tool:
@@ -56,19 +96,14 @@ class GBPTools:
         credentials = get_gbp_credentials()
         return build(service_name, version, credentials=credentials, cache_discovery=False)
 
+    @tool_exception_handler
     def list_accounts(self) -> list[dict[str, Any]]:
         """List all Google Business Profile accounts accessible."""
-        try:
-            service = self._build_gbp_service("mybusinessaccountmanagement", "v1")
-            accounts = service.accounts().list().execute()
-            return accounts.get("accounts", [])
-        except HttpError as e:
-            logger.error(f"API Error in list_accounts: {e}")
-            return []
-        except Exception as e:
-            logger.error(f"Unexpected Error in list_accounts: {e}")
-            return []
+        service = self._build_gbp_service("mybusinessaccountmanagement", "v1")
+        accounts = service.accounts().list().execute()
+        return accounts.get("accounts", [])
 
+    @tool_exception_handler
     def list_locations(self, account_name: str) -> list[dict[str, Any]]:
         """
         List all locations for a specific Google Business Profile account.
@@ -76,22 +111,16 @@ class GBPTools:
         Args:
             account_name: The resource name of the account, e.g., 'accounts/{accountId}'
         """
-        try:
-            service = self._build_gbp_service("mybusinessbusinessinformation", "v1")
-            locations = (
-                service.accounts()
-                .locations()
-                .list(parent=account_name, readMask="name,title,storeCode")
-                .execute()
-            )
-            return locations.get("locations", [])
-        except HttpError as e:
-            logger.error(f"API Error in list_locations: {e}")
-            return []
-        except Exception as e:
-            logger.error(f"Unexpected Error in list_locations: {e}")
-            return []
+        service = self._build_gbp_service("mybusinessbusinessinformation", "v1")
+        locations = (
+            service.accounts()
+            .locations()
+            .list(parent=account_name, readMask="name,title,storeCode")
+            .execute()
+        )
+        return locations.get("locations", [])
 
+    @tool_exception_handler
     def list_reviews(self, location_name: str) -> list[dict[str, Any]]:
         """
         List reviews for a specific Google Business Profile location.
@@ -99,19 +128,13 @@ class GBPTools:
         Args:
             location_name: The resource name of the location, e.g., 'accounts/{accountId}/locations/{locationId}'
         """
-        try:
-            service = self._build_gbp_service("mybusinessreviews", "v1")
-            reviews = (
-                service.accounts().locations().reviews().list(parent=location_name).execute()
-            )
-            return reviews.get("reviews", [])
-        except HttpError as e:
-            logger.error(f"API Error in list_reviews: {e}")
-            return []
-        except Exception as e:
-            logger.error(f"Unexpected Error in list_reviews: {e}")
-            return []
+        service = self._build_gbp_service("mybusinessreviews", "v1")
+        reviews = (
+            service.accounts().locations().reviews().list(parent=location_name).execute()
+        )
+        return reviews.get("reviews", [])
 
+    @tool_exception_handler
     def reply_to_review(self, review_name: str, reply_text: str) -> dict[str, Any]:
         """
         Reply to a Google Business Profile review.
@@ -120,39 +143,18 @@ class GBPTools:
             review_name: The resource name of the review, e.g., 'accounts/{accountId}/locations/{locationId}/reviews/{reviewId}'
             reply_text: The text of the reply.
         """
-        try:
-            service = self._build_gbp_service("mybusinessreviews", "v1")
-            body = {"comment": reply_text}
-            response = (
-                service.accounts()
-                .locations()
-                .reviews()
-                .updateReply(name=review_name, body=body)
-                .execute()
-            )
-            return response
-        except HttpError as e:
-            logger.error(f"API Error in reply_to_review: {e}")
-            error_message = "Tool 'reply_to_review' failed with an API error."
-            try:
-                error_content = json.loads(e.content.decode("utf-8"))
-                if "error" in error_content and "message" in error_content["error"]:
-                    error_message += (
-                        f" API Response: {error_content['error']['message']}"
-                    )
-                else:
-                    error_message += f" Reason: {e.reason}"
-            except Exception:
-                error_message += f" Reason: {e.reason}"
-            return {"error": error_message, "tool_name": "reply_to_review"}
-        except Exception as e:
-            logger.error(f"Unexpected Error in reply_to_review: {e}")
-            return {
-                "error": "Tool 'reply_to_review' failed unexpectedly.",
-                "details": str(e),
-                "tool_name": "reply_to_review",
-            }
+        service = self._build_gbp_service("mybusinessreviews", "v1")
+        body = {"comment": reply_text}
+        response = (
+            service.accounts()
+            .locations()
+            .reviews()
+            .updateReply(name=review_name, body=body)
+            .execute()
+        )
+        return response
 
+    @tool_exception_handler
     def create_local_post(
         self, location_name: str, summary: str, call_to_action_url: str | None = None
     ) -> dict[str, Any]:
@@ -164,45 +166,24 @@ class GBPTools:
             summary: The content of the post.
             call_to_action_url: Optional URL for a 'LEARN_MORE' button.
         """
-        try:
-            service = self._build_gbp_service("mybusinessbusinessinformation", "v1")
-            body = {"languageCode": "en-US", "summary": summary}
-            if call_to_action_url:
-                body["callToAction"] = {
-                    "actionType": "LEARN_MORE",
-                    "uri": call_to_action_url,
-                }
-
-            response = (
-                service.accounts()
-                .locations()
-                .localPosts()
-                .create(parent=location_name, body=body)
-                .execute()
-            )
-            return response
-        except HttpError as e:
-            logger.error(f"API Error in create_local_post: {e}")
-            error_message = "Tool 'create_local_post' failed with an API error."
-            try:
-                error_content = json.loads(e.content.decode("utf-8"))
-                if "error" in error_content and "message" in error_content["error"]:
-                    error_message += (
-                        f" API Response: {error_content['error']['message']}"
-                    )
-                else:
-                    error_message += f" Reason: {e.reason}"
-            except Exception:
-                error_message += f" Reason: {e.reason}"
-            return {"error": error_message, "tool_name": "create_local_post"}
-        except Exception as e:
-            logger.error(f"Unexpected Error in create_local_post: {e}")
-            return {
-                "error": "Tool 'create_local_post' failed unexpectedly.",
-                "details": str(e),
-                "tool_name": "create_local_post",
+        service = self._build_gbp_service("mybusinessbusinessinformation", "v1")
+        body = {"languageCode": "en-US", "summary": summary}
+        if call_to_action_url:
+            body["callToAction"] = {
+                "actionType": "LEARN_MORE",
+                "uri": call_to_action_url,
             }
 
+        response = (
+            service.accounts()
+            .locations()
+            .localPosts()
+            .create(parent=location_name, body=body)
+            .execute()
+        )
+        return response
+
+    @tool_exception_handler
     def get_performance_insights(
         self, location_name: str, start_day: str, end_day: str
     ) -> dict[str, Any]:
@@ -214,82 +195,60 @@ class GBPTools:
             start_day: Start day in YYYY-MM-DD format.
             end_day: End day in YYYY-MM-DD format.
         """
-        try:
-            # Note: businessprofileperformance uses a different location name format: 'locations/{locationId}'
-            # If location_name is 'accounts/{acc}/locations/{loc}', we need to strip the accounts part.
-            if location_name.startswith("accounts/"):
-                location_id = location_name.split("/")[-1]
-                perf_location_name = f"locations/{location_id}"
-            else:
-                perf_location_name = location_name
+        # Note: businessprofileperformance uses a different location name format: 'locations/{locationId}'
+        # If location_name is 'accounts/{acc}/locations/{loc}', we need to strip the accounts part.
+        if location_name.startswith("accounts/"):
+            location_id = location_name.split("/")[-1]
+            perf_location_name = f"locations/{location_id}"
+        else:
+            perf_location_name = location_name
 
-            service = self._build_gbp_service("businessprofileperformance", "v1")
+        service = self._build_gbp_service("businessprofileperformance", "v1")
 
-            # Example metrics
-            metrics = [
-                "CALL_CLICKS",
-                "WEBSITE_CLICKS",
-                "BUSINESS_IMPRESSIONS_DESKTOP_MAPS",
-                "BUSINESS_IMPRESSIONS_DESKTOP_SEARCH",
-                "BUSINESS_IMPRESSIONS_MOBILE_MAPS",
-                "BUSINESS_IMPRESSIONS_MOBILE_SEARCH",
-                "BUSINESS_CONVERSATIONS",
-                "BUSINESS_BOOKINGS",
-                "BUSINESS_FOOD_ORDERS",
-                "BUSINESS_DIRECTION_REQUESTS",
-            ]
+        # Example metrics
+        metrics = [
+            "CALL_CLICKS",
+            "WEBSITE_CLICKS",
+            "BUSINESS_IMPRESSIONS_DESKTOP_MAPS",
+            "BUSINESS_IMPRESSIONS_DESKTOP_SEARCH",
+            "BUSINESS_IMPRESSIONS_MOBILE_MAPS",
+            "BUSINESS_IMPRESSIONS_MOBILE_SEARCH",
+            "BUSINESS_CONVERSATIONS",
+            "BUSINESS_BOOKINGS",
+            "BUSINESS_FOOD_ORDERS",
+            "BUSINESS_DIRECTION_REQUESTS",
+        ]
 
-            start_date = {
-                "year": int(start_day[:4]),
-                "month": int(start_day[5:7]),
-                "day": int(start_day[8:10]),
-            }
-            end_date = {
-                "year": int(end_day[:4]),
-                "month": int(end_day[5:7]),
-                "day": int(end_day[8:10]),
-            }
+        start_date = {
+            "year": int(start_day[:4]),
+            "month": int(start_day[5:7]),
+            "day": int(start_day[8:10]),
+        }
+        end_date = {
+            "year": int(end_day[:4]),
+            "month": int(end_day[5:7]),
+            "day": int(end_day[8:10]),
+        }
 
-            results = {}
-            for metric in metrics:
-                response = (
-                    service.locations()
-                    .getDailyMetricsTimeSeries(
-                        name=perf_location_name,
-                        dailyMetric=metric,
-                        dailyRange_startDate_year=start_date["year"],
-                        dailyRange_startDate_month=start_date["month"],
-                        dailyRange_startDate_day=start_date["day"],
-                        dailyRange_endDate_year=end_date["year"],
-                        dailyRange_endDate_month=end_date["month"],
-                        dailyRange_endDate_day=end_date["day"],
-                    )
-                    .execute()
+        results = {}
+        for metric in metrics:
+            response = (
+                service.locations()
+                .getDailyMetricsTimeSeries(
+                    name=perf_location_name,
+                    dailyMetric=metric,
+                    dailyRange_startDate_year=start_date["year"],
+                    dailyRange_startDate_month=start_date["month"],
+                    dailyRange_startDate_day=start_date["day"],
+                    dailyRange_endDate_year=end_date["year"],
+                    dailyRange_endDate_month=end_date["month"],
+                    dailyRange_endDate_day=end_date["day"],
                 )
-                results[metric] = response.get("timeSeries", {})
+                .execute()
+            )
+            results[metric] = response.get("timeSeries", {})
 
-            return results
-        except HttpError as e:
-            logger.error(f"API Error in get_performance_insights: {e}")
-            error_message = "Tool 'get_performance_insights' failed with an API error."
-            try:
-                error_content = json.loads(e.content.decode("utf-8"))
-                if "error" in error_content and "message" in error_content["error"]:
-                    error_message += (
-                        f" API Response: {error_content['error']['message']}"
-                    )
-                else:
-                    error_message += f" Reason: {e.reason}"
-            except Exception:
-                error_message += f" Reason: {e.reason}"
-            return {"error": error_message, "tool_name": "get_performance_insights"}
-        except Exception as e:
-            logger.error(f"Unexpected Error in get_performance_insights: {e}")
-            return {
-                "error": "Tool 'get_performance_insights' failed unexpectedly.",
-                "details": str(e),
-                "tool_name": "get_performance_insights",
-            }
+        return results
 
 
 gbp_tools_instance = GBPTools()
