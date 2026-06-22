@@ -1,4 +1,3 @@
-from datetime import datetime
 import functools
 import json
 import logging
@@ -12,11 +11,9 @@ from googleapiclient.errors import HttpError, UnknownApiNameOrVersion
 
 logger = logging.getLogger(__name__)
 
-
 def _format_tool_error(
     tool_name: str, e: Exception, args: tuple, kwargs: dict, api_response: str | None = None
 ) -> str:
-    """Formats a tool error into a detailed string for the LLM."""
     error_details = [
         "[TOOL_ERROR]",
         f"tool_name: {tool_name}",
@@ -27,16 +24,10 @@ def _format_tool_error(
     ]
     if api_response:
         error_details.append(f"api_response: {api_response}")
-
-    error_details.append(
-        "instructions_for_llm: Analyze this traceback. If you passed invalid parameters, please correct your arguments and call the tool again. If this is a deprecated API error, do not call this tool again and look for an alternative."
-    )
+    error_details.append("instructions_for_llm: Analyze this traceback. If you passed invalid parameters, please correct your arguments and call the tool again. If this is a deprecated API error, do not call this tool again and look for an alternative.")
     return "\n".join(error_details)
 
-
 def tool_exception_handler(func: Callable) -> Callable:
-    """Decorator to handle exceptions and format them for the LLM."""
-
     @functools.wraps(func)
     def wrapper(*args: Any, **kwargs: Any) -> Any:
         tool_name = func.__name__
@@ -51,23 +42,98 @@ def tool_exception_handler(func: Callable) -> Callable:
                     api_response_str = json.dumps(api_response_obj)
                 except (json.JSONDecodeError, UnicodeDecodeError):
                     api_response_str = e.content.decode("utf-8", errors="ignore")
-            
-            return _format_tool_error(
-                tool_name, e, args, kwargs, api_response=api_response_str
-            )
+            return _format_tool_error(tool_name, e, args, kwargs, api_response=api_response_str)
         except Exception as e:
             logger.error(f"Unexpected Error in {tool_name}: {e}")
             return _format_tool_error(tool_name, e, args, kwargs)
-
     return wrapper
 
+class GBPTools:
+    def __init__(self):
+        self.scopes = ["https://www.googleapis.com/auth/business.manage"]
+
+    def _get_credentials(self):
+        refresh_token = os.getenv("GOOGLE_REFRESH_TOKEN")
+        client_id = os.getenv("GOOGLE_CLIENT_ID")
+        client_secret = os.getenv("GOOGLE_CLIENT_SECRET")
+        if refresh_token and client_id and client_secret:
+            return Credentials(None, refresh_token=refresh_token, token_uri="https://oauth2.googleapis.com/token", client_id=client_id, client_secret=client_secret, scopes=self.scopes)
+        credentials, _ = default(scopes=self.scopes)
+        return credentials
+
+    def _build_service(self, service_name: str, version: str) -> Any:
+        return build(service_name, version, credentials=self._get_credentials(), cache_discovery=False)
+
+    @tool_exception_handler
+    def list_accounts(self) -> Any:
+        service = self._build_service("mybusinessaccountmanagement", "v1")
+        accounts = service.accounts().list().execute()
+        return accounts.get("accounts", [])
+
+    @tool_exception_handler
+    def list_locations(self, account_name: str) -> Any:
+        service = self._build_service("mybusinessbusinessinformation", "v1")
+        locations = service.accounts().locations().list(parent=account_name, readMask="name,title,storeCode").execute()
+        return locations.get("locations", [])
+
+    @tool_exception_handler
+    def list_reviews(self, location_name: str) -> Any:
+        service = self._build_service("mybusinessreviews", "v1")
+        reviews = service.accounts().locations().reviews().list(parent=location_name).execute()
+        return reviews.get("reviews", [])
+
+    @tool_exception_handler
+    def reply_to_review(self, review_name: str, reply_text: str) -> Any:
+        service = self._build_service("mybusinessreviews", "v1")
+        body = {"comment": reply_text}
+        return service.accounts().locations().reviews().updateReply(name=review_name, body=body).execute()
+
+    @tool_exception_handler
+    def create_local_post(self, location_name: str, summary: str, call_to_action_url: str | None = None) -> Any:
+        service = self._build_service("mybusinessbusinessinformation", "v1")
+        body = {"languageCode": "en-US", "summary": summary}
+        if call_to_action_url:
+            body["callToAction"] = {"actionType": "LEARN_MORE", "uri": call_to_action_url}
+        return service.accounts().locations().localPosts().create(parent=location_name, body=body).execute()
+
+    @tool_exception_handler
+    def get_performance_insights(self, location_name: str, start_day: str, end_day: str) -> Any:
+        if location_name.startswith("accounts/"):
+            location_id = location_name.split("/")[-1]
+            perf_location_name = f"locations/{location_id}"
+        else:
+            perf_location_name = location_name
+        service = self._build_service("businessprofileperformance", "v1")
+        metrics = ["CALL_CLICKS", "WEBSITE_CLICKS", "BUSINESS_IMPRESSIONS_DESKTOP_MAPS", "BUSINESS_IMPRESSIONS_DESKTOP_SEARCH", "BUSINESS_IMPRESSIONS_MOBILE_MAPS", "BUSINESS_IMPRESSIONS_MOBILE_SEARCH", "BUSINESS_CONVERSATIONS", "BUSINESS_BOOKINGS", "BUSINESS_FOOD_ORDERS", "BUSINESS_DIRECTION_REQUESTS"]
+        start_date = {"year": int(start_day[:4]), "month": int(start_day[5:7]), "day": int(start_day[8:10])}
+        end_date = {"year": int(end_day[:4]), "month": int(end_day[5:7]), "day": int(end_day[8:10])}
+        results = {}
+        for metric in metrics:
+            response = service.locations().getDailyMetricsTimeSeries(name=perf_location_name, dailyMetric=metric, dailyRange_startDate_year=start_date["year"], dailyRange_startDate_month=start_date["month"], dailyRange_startDate_day=start_date["day"], dailyRange_endDate_year=end_date["year"], dailyRange_endDate_month=end_date["month"], dailyRange_endDate_day=end_date["day"]).execute()
+            results[metric] = response.get("timeSeries", {})
+        return results
+
+    # Simplified placeholders for other methods
+    @tool_exception_handler
+    def search_google_for_business_id(self, *args, **kwargs) -> Any: return {"error": "Not implemented"}
+    @tool_exception_handler
+    def upload_media_for_post(self, *args, **kwargs) -> Any: return {"error": "Not implemented"}
+    @tool_exception_handler
+    def get_location_details(self, *args, **kwargs) -> Any: return {"error": "Not implemented"}
+    @tool_exception_handler
+    def update_location_data(self, *args, **kwargs) -> Any: return {"error": "Not implemented"}
+    @tool_exception_handler
+    def list_local_posts(self, *args, **kwargs) -> Any: return {"error": "Not implemented"}
+    @tool_exception_handler
+    def delete_local_post(self, *args, **kwargs) -> Any: return {"error": "Not implemented"}
+    @tool_exception_handler
+    def delete_review_reply(self, *args, **kwargs) -> Any: return {"error": "Not implemented"}
+    @tool_exception_handler
+    def list_questions(self, *args, **kwargs) -> Any: return {"error": "Not implemented"}
+    @tool_exception_handler
+    def answer_question(self, *args, **kwargs) -> Any: return {"error": "Not implemented"}
 
 gbp_tools_instance = GBPTools()
-
-def __getattr__(name):
-    if hasattr(gbp_tools_instance, name):
-        return getattr(gbp_tools_instance, name)
-    raise AttributeError(f"module {__name__} has no attribute {name}")
 
 tools = [
     gbp_tools_instance.list_accounts,
