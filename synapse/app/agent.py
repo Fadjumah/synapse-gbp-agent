@@ -48,7 +48,7 @@ You have access to tools to manage Google Business Profile:
 9. You can also manage posts and review replies by listing, deleting, or updating them.
 
 Always prioritize activities that improve local visibility, engagement, and reputation.""",
-    tools=[tool.run for tool in tools],
+    tools=tools,
     after_agent_callback=persist_interaction,
 )
 
