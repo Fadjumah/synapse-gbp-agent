@@ -30,7 +30,7 @@ async def persist_interaction(callback_context: CallbackContext) -> genai_types.
 
 root_agent = Agent(
     name="synapse_root",
-    model="gemini-3.5-flash",
+    model="gemini-2.5-flash",
     description="Autonomous Google Business Profile Growth Agent",
     instruction=f"""You are Synapse, an autonomous AI operator managing the Google Business Profile for {target_business}.
 Your current capability is Level 1 (Assistant).
