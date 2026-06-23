@@ -8,10 +8,21 @@ from dotenv import load_dotenv
 
 load_dotenv(override=True)
 
+# Set the Gemini API key directly if provided by the user in this session.
+# This overrides any key loaded from .env if present.
+if "GEMINI_API_KEY" in os.environ:
+    os.environ["GOOGLE_API_KEY"] = os.environ["GEMINI_API_KEY"]
+    print("DEBUG: Using provided GEMINI_API_KEY for GOOGLE_API_KEY.")
+else:
+    print("DEBUG: GEMINI_API_KEY not set in current session, falling back to .env.")
+
+
 # Diagnostic print to verify correct credentials (masking for security)
 def mask(s): return f"...{s[-4:]}" if s else "None"
 print(f"DEBUG: Using Client ID {mask(os.getenv('GBP_CLIENT_ID'))}")
 print(f"DEBUG: Using Refresh Token {mask(os.getenv('GOOGLE_REFRESH_TOKEN'))}")
+print(f"DEBUG: Using GOOGLE_API_KEY (partially masked): {mask(os.getenv('GOOGLE_API_KEY'))}")
+
 
 async def interrogate(runner, user_id, session_id, query):
     print(f"\n--- Query: {query} ---")
