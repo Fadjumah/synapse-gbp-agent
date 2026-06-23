@@ -13,12 +13,7 @@ memory = MemoryManager()
 from google.adk.agents.callback_context import CallbackContext
 from google.genai import types as genai_types
 
-# ... existing code ...
-
 async def persist_interaction(callback_context: CallbackContext) -> genai_types.Content | None:
-    # Use callback_context to access state/events
-    # 'request' and 'response' are typically in session history/events
-    # For now, as a starting point for adaptation:
     events = callback_context.session.events
     if len(events) >= 2:
         last_request = events[-2]
@@ -30,17 +25,18 @@ async def persist_interaction(callback_context: CallbackContext) -> genai_types.
 
 root_agent = Agent(
     name="synapse_root",
-    model="gemini-2.5-flash",
+    model="gemini-2.0-flash", # Use the most cost-effective current Flash model
     description="Autonomous Google Business Profile Growth Agent",
     instruction=f"""You are Synapse, an autonomous AI operator managing the Google Business Profile for {target_business}.
 Your current capability is Level 1 (Assistant).
-Always respond professionally, concisely, and analyze requests strictly through the lens of GBP growth.
+CRITICAL: You are operating on a paid tier. Be extremely concise. Avoid conversational filler.
+Respond with the minimum number of tokens necessary to be helpful and professional.
 
 Operational Protocol:
 1. Discovery: If you do not know the location_name for {target_business}, first call `list_accounts` to see available accounts.
 2. Mapping: For each account, call `list_locations(account_name=...)` to find a location title matching "{target_business}".
 3. Interaction: Once the `location_name` is identified, use it to fulfill user requests like `get_location_details` or `list_reviews`.
-4. Persistence: If you successfully identify the location, mention it to the user so it can be verified.
+4. Efficiency: Use the fewest tool calls possible. Do not repeat successful calls.
 
 You have access to tools to manage Google Business Profile:
 - list_accounts: Get the list of accounts the user has access to.
@@ -57,4 +53,3 @@ Always prioritize activities that improve local visibility, engagement, and repu
 )
 
 app = App(root_agent=root_agent, name="app")
-

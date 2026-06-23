@@ -38,9 +38,11 @@ async def main():
 
     queries = [
         "What is the phone number and address of my business?",
-        "What are our recent reviews saying? Provide a summary.",
-        "Are there any unanswered questions? List them.",
-        "How has our performance been lately?"
+        "Summarize our recent customer reviews. What's the general sentiment?",
+        "Check for any unanswered questions from customers.",
+        "List our recent local posts. What was the last thing we shared?",
+        "Show me how our business performed over the last 30 days. Which metrics are up?",
+        "Can you find the location details for Eritage ENT Care and tell me our opening hours?"
     ]
 
     for query in queries:
