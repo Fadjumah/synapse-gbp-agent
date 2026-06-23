@@ -39,6 +39,7 @@ async def main():
     queries = [
         "What is the phone number and address of my business?",
         "What are our recent reviews saying? Provide a summary.",
+        "Are there any unanswered questions? List them.",
         "How has our performance been lately?"
     ]
 

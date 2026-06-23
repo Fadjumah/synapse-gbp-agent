@@ -72,8 +72,8 @@ class GBPTools:
         credentials, _ = default(scopes=self.scopes)
         return credentials
 
-    def _build_service(self, service_name: str, version: str) -> Any:
-        return build(service_name, version, credentials=self._get_credentials(), cache_discovery=False)
+    def _build_service(self, service_name: str, version: str, discovery_service_url: str | None = None) -> Any:
+        return build(service_name, version, credentials=self._get_credentials(), cache_discovery=False, discoveryServiceUrl=discovery_service_url)
 
     @tool_exception_handler
     def list_accounts(self) -> Any:
@@ -89,23 +89,34 @@ class GBPTools:
 
     @tool_exception_handler
     def list_reviews(self, location_name: str) -> Any:
-        service = self._build_service("mybusinessreviews", "v1")
+        # Reviews still primarily use the v4 endpoint
+        discovery_url = "https://mybusiness.googleapis.com/$discovery/rest?version=v4"
+        service = self._build_service("mybusiness", "v4", discovery_service_url=discovery_url)
         reviews = service.accounts().locations().reviews().list(parent=location_name).execute()
         return reviews.get("reviews", [])
 
     @tool_exception_handler
     def reply_to_review(self, review_name: str, reply_text: str) -> Any:
-        service = self._build_service("mybusinessreviews", "v1")
+        discovery_url = "https://mybusiness.googleapis.com/$discovery/rest?version=v4"
+        service = self._build_service("mybusiness", "v4", discovery_service_url=discovery_url)
         body = {"comment": reply_text}
         return service.accounts().locations().reviews().updateReply(name=review_name, body=body).execute()
 
     @tool_exception_handler
     def create_local_post(self, location_name: str, summary: str, call_to_action_url: str | None = None) -> Any:
-        service = self._build_service("mybusinessbusinessinformation", "v1")
+        discovery_url = "https://mybusiness.googleapis.com/$discovery/rest?version=v4"
+        service = self._build_service("mybusiness", "v4", discovery_service_url=discovery_url)
         body = {"languageCode": "en-US", "summary": summary}
         if call_to_action_url:
             body["callToAction"] = {"actionType": "LEARN_MORE", "uri": call_to_action_url}
         return service.accounts().locations().localPosts().create(parent=location_name, body=body).execute()
+
+    @tool_exception_handler
+    def list_local_posts(self, location_name: str) -> Any:
+        discovery_url = "https://mybusiness.googleapis.com/$discovery/rest?version=v4"
+        service = self._build_service("mybusiness", "v4", discovery_service_url=discovery_url)
+        posts = service.accounts().locations().localPosts().list(parent=location_name).execute()
+        return posts.get("localPosts", [])
 
     @tool_exception_handler
     def get_performance_insights(self, location_name: str, start_day: str, end_day: str) -> Any:
@@ -124,11 +135,6 @@ class GBPTools:
             results[metric] = response.get("timeSeries", {})
         return results
 
-    # Simplified placeholders for other methods
-    @tool_exception_handler
-    def search_google_for_business_id(self, *args, **kwargs) -> Any: return {"error": "Not implemented"}
-    @tool_exception_handler
-    def upload_media_for_post(self, *args, **kwargs) -> Any: return {"error": "Not implemented"}
     @tool_exception_handler
     def get_location_details(self, location_name: str) -> Any:
         service = self._build_service("mybusinessbusinessinformation", "v1")
@@ -141,16 +147,31 @@ class GBPTools:
     def update_location_data(self, location_name: str, update_mask: str, body: dict) -> Any:
         service = self._build_service("mybusinessbusinessinformation", "v1")
         return service.locations().patch(name=location_name, updateMask=update_mask, body=body).execute()
+
     @tool_exception_handler
-    def list_local_posts(self, *args, **kwargs) -> Any: return {"error": "Not implemented"}
+    def delete_local_post(self, post_name: str) -> Any:
+        discovery_url = "https://mybusiness.googleapis.com/$discovery/rest?version=v4"
+        service = self._build_service("mybusiness", "v4", discovery_service_url=discovery_url)
+        return service.accounts().locations().localPosts().delete(name=post_name).execute()
+
     @tool_exception_handler
-    def delete_local_post(self, *args, **kwargs) -> Any: return {"error": "Not implemented"}
+    def list_questions(self, location_name: str) -> Any:
+        service = self._build_service("mybusinessqanda", "v1")
+        questions = service.locations().questions().list(parent=location_name).execute()
+        return questions.get("questions", [])
+
+    @tool_exception_handler
+    def answer_question(self, question_name: str, answer_text: str) -> Any:
+        service = self._build_service("mybusinessqanda", "v1")
+        body = {"answer": {"text": answer_text}}
+        return service.locations().questions().answers().upsert(parent=question_name, body=body).execute()
+
+    @tool_exception_handler
+    def search_google_for_business_id(self, *args, **kwargs) -> Any: return {"error": "Not implemented"}
+    @tool_exception_handler
+    def upload_media_for_post(self, *args, **kwargs) -> Any: return {"error": "Not implemented"}
     @tool_exception_handler
     def delete_review_reply(self, *args, **kwargs) -> Any: return {"error": "Not implemented"}
-    @tool_exception_handler
-    def list_questions(self, *args, **kwargs) -> Any: return {"error": "Not implemented"}
-    @tool_exception_handler
-    def answer_question(self, *args, **kwargs) -> Any: return {"error": "Not implemented"}
 
 gbp_tools_instance = GBPTools()
 
