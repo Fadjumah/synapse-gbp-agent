@@ -54,10 +54,21 @@ class GBPTools:
 
     def _get_credentials(self):
         refresh_token = os.getenv("GOOGLE_REFRESH_TOKEN")
-        client_id = os.getenv("GOOGLE_CLIENT_ID")
+        client_id = os.getenv("GBP_CLIENT_ID") or os.getenv("GOOGLE_CLIENT_ID")
         client_secret = os.getenv("GOOGLE_CLIENT_SECRET")
+        
         if refresh_token and client_id and client_secret:
-            return Credentials(None, refresh_token=refresh_token, token_uri="https://oauth2.googleapis.com/token", client_id=client_id, client_secret=client_secret, scopes=self.scopes)
+            logger.info("Using Credentials from environment variables.")
+            return Credentials(
+                token=None,
+                refresh_token=refresh_token,
+                token_uri="https://oauth2.googleapis.com/token",
+                client_id=client_id,
+                client_secret=client_secret,
+                scopes=self.scopes
+            )
+        
+        logger.warning("Environment credentials missing, falling back to default credentials.")
         credentials, _ = default(scopes=self.scopes)
         return credentials
 
@@ -119,9 +130,17 @@ class GBPTools:
     @tool_exception_handler
     def upload_media_for_post(self, *args, **kwargs) -> Any: return {"error": "Not implemented"}
     @tool_exception_handler
-    def get_location_details(self, *args, **kwargs) -> Any: return {"error": "Not implemented"}
+    def get_location_details(self, location_name: str) -> Any:
+        service = self._build_service("mybusinessbusinessinformation", "v1")
+        return service.locations().get(
+            name=location_name, 
+            readMask="name,title,phoneNumbers,regularHours,websiteUri,profile,serviceArea,labels,adWordsLocationExtensions,latlng,openInfo,metadata"
+        ).execute()
+
     @tool_exception_handler
-    def update_location_data(self, *args, **kwargs) -> Any: return {"error": "Not implemented"}
+    def update_location_data(self, location_name: str, update_mask: str, body: dict) -> Any:
+        service = self._build_service("mybusinessbusinessinformation", "v1")
+        return service.locations().patch(name=location_name, updateMask=update_mask, body=body).execute()
     @tool_exception_handler
     def list_local_posts(self, *args, **kwargs) -> Any: return {"error": "Not implemented"}
     @tool_exception_handler
