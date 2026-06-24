@@ -31,9 +31,7 @@ async def set_active_business_tool(location_id: str, callback_context: CallbackC
 
 # Create a Tool instance for set_active_business_tool
 set_active_business_adk_tool = FunctionTool(
-    name="set_active_business",
-    description="Sets the active business's location ID in the session state. Args: location_id (str)",
-    func=set_active_business_tool,
+    set_active_business_tool,
 )
 
 
