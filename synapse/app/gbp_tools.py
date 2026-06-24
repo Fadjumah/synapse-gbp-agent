@@ -125,14 +125,42 @@ class GBPTools:
             perf_location_name = f"locations/{location_id}"
         else:
             perf_location_name = location_name
+            
         service = self._build_service("businessprofileperformance", "v1")
-        metrics = ["CALL_CLICKS", "WEBSITE_CLICKS", "BUSINESS_IMPRESSIONS_DESKTOP_MAPS", "BUSINESS_IMPRESSIONS_DESKTOP_SEARCH", "BUSINESS_IMPRESSIONS_MOBILE_MAPS", "BUSINESS_IMPRESSIONS_MOBILE_SEARCH", "BUSINESS_CONVERSATIONS", "BUSINESS_BOOKINGS", "BUSINESS_FOOD_ORDERS", "BUSINESS_DIRECTION_REQUESTS"]
+        metrics = [
+            "CALL_CLICKS", "WEBSITE_CLICKS", "BUSINESS_IMPRESSIONS_DESKTOP_MAPS", 
+            "BUSINESS_IMPRESSIONS_DESKTOP_SEARCH", "BUSINESS_IMPRESSIONS_MOBILE_MAPS", 
+            "BUSINESS_IMPRESSIONS_MOBILE_SEARCH", "BUSINESS_CONVERSATIONS", 
+            "BUSINESS_BOOKINGS", "BUSINESS_FOOD_ORDERS", "BUSINESS_DIRECTION_REQUESTS"
+        ]
         start_date = {"year": int(start_day[:4]), "month": int(start_day[5:7]), "day": int(start_day[8:10])}
         end_date = {"year": int(end_day[:4]), "month": int(end_day[5:7]), "day": int(end_day[8:10])}
         results = {}
+        
         for metric in metrics:
-            response = service.locations().getDailyMetricsTimeSeries(name=perf_location_name, dailyMetric=metric, dailyRange_startDate_year=start_date["year"], dailyRange_startDate_month=start_date["month"], dailyRange_startDate_day=start_date["day"], dailyRange_endDate_year=end_date["year"], dailyRange_endDate_month=end_date["month"], dailyRange_endDate_day=end_date["day"]).execute()
-            results[metric] = response.get("timeSeries", {})
+            response = service.locations().getDailyMetricsTimeSeries(
+                name=perf_location_name, 
+                dailyMetric=metric, 
+                dailyRange_startDate_year=start_date["year"], 
+                dailyRange_startDate_month=start_date["month"], 
+                dailyRange_startDate_day=start_date["day"], 
+                dailyRange_endDate_year=end_date["year"], 
+                dailyRange_endDate_month=end_date["month"], 
+                dailyRange_endDate_day=end_date["day"]
+            ).execute()
+            
+            # Sanitize response: Default missing "value" keys to "0" (Proto3 zero omission rule)
+            time_series = response.get("timeSeries", {})
+            dated_values = time_series.get("datedValues", [])
+            sanitized_values = []
+            for dv in dated_values:
+                sanitized_values.append({
+                    "date": dv.get("date"),
+                    "value": dv.get("value", "0")  # Explicitly default to "0"
+                })
+            
+            results[metric] = {"datedValues": sanitized_values}
+            
         return results
 
     @tool_exception_handler
@@ -157,7 +185,8 @@ class GBPTools:
     @tool_exception_handler
     def list_questions(self, location_name: str) -> Any:
         service = self._build_service("mybusinessqanda", "v1")
-        questions = service.locations().questions().list(parent=location_name).execute()
+        parent_path = location_name if location_name.endswith("/questions") else f"{location_name}/questions"
+        questions = service.locations().questions().list(parent=parent_path).execute()
         return questions.get("questions", [])
 
     @tool_exception_handler
