@@ -3,7 +3,7 @@ from typing import Any
 
 from google.adk.agents.llm_agent import Agent
 from google.adk.apps import App
-from google.adk.agents.tool import Tool # New import for Tool
+from google.adk.tools import FunctionTool
 
 from app.app_utils.memory_manager import MemoryManager
 from app.gbp_tools import tools
@@ -30,11 +30,10 @@ async def set_active_business_tool(location_id: str, callback_context: CallbackC
     return f"Active business set to location_id: {location_id}"
 
 # Create a Tool instance for set_active_business_tool
-set_active_business_adk_tool = Tool(
+set_active_business_adk_tool = FunctionTool(
     name="set_active_business",
     description="Sets the active business's location ID in the session state. Args: location_id (str)",
     func=set_active_business_tool,
-    is_agent_internal_tool=True # Mark as internal tool
 )
 
 
