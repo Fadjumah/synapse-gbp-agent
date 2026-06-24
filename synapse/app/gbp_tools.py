@@ -90,22 +90,19 @@ class GBPTools:
     @tool_exception_handler
     def list_reviews(self, location_name: str) -> Any:
         # Reviews still primarily use the v4 endpoint
-        discovery_url = "https://mybusiness.googleapis.com/$discovery/rest?version=v4"
-        service = self._build_service("mybusiness", "v4", discovery_service_url=discovery_url)
+        service = self._build_service("mybusiness", "v4")
         reviews = service.accounts().locations().reviews().list(parent=location_name).execute()
         return reviews.get("reviews", [])
 
     @tool_exception_handler
     def reply_to_review(self, review_name: str, reply_text: str) -> Any:
-        discovery_url = "https://mybusiness.googleapis.com/$discovery/rest?version=v4"
-        service = self._build_service("mybusiness", "v4", discovery_service_url=discovery_url)
+        service = self._build_service("mybusiness", "v4")
         body = {"comment": reply_text}
         return service.accounts().locations().reviews().updateReply(name=review_name, body=body).execute()
 
     @tool_exception_handler
     def create_local_post(self, location_name: str, summary: str, call_to_action_url: str | None = None) -> Any:
-        discovery_url = "https://mybusiness.googleapis.com/$discovery/rest?version=v4"
-        service = self._build_service("mybusiness", "v4", discovery_service_url=discovery_url)
+        service = self._build_service("mybusiness", "v4")
         body = {"languageCode": "en-US", "summary": summary}
         if call_to_action_url:
             body["callToAction"] = {"actionType": "LEARN_MORE", "uri": call_to_action_url}
@@ -113,8 +110,7 @@ class GBPTools:
 
     @tool_exception_handler
     def list_local_posts(self, location_name: str) -> Any:
-        discovery_url = "https://mybusiness.googleapis.com/$discovery/rest?version=v4"
-        service = self._build_service("mybusiness", "v4", discovery_service_url=discovery_url)
+        service = self._build_service("mybusiness", "v4")
         posts = service.accounts().locations().localPosts().list(parent=location_name).execute()
         return posts.get("localPosts", [])
 
@@ -178,8 +174,7 @@ class GBPTools:
 
     @tool_exception_handler
     def delete_local_post(self, post_name: str) -> Any:
-        discovery_url = "https://mybusiness.googleapis.com/$discovery/rest?version=v4"
-        service = self._build_service("mybusiness", "v4", discovery_service_url=discovery_url)
+        service = self._build_service("mybusiness", "v4")
         return service.accounts().locations().localPosts().delete(name=post_name).execute()
 
     @tool_exception_handler
