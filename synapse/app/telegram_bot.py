@@ -18,7 +18,7 @@ from telegram.ext import (
 load_dotenv()
 
 # Assuming root_agent is imported from agent.py
-from app.agent import root_agent
+from app.agent import root_agent, memory # Import memory here
 
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
 
@@ -45,6 +45,20 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except Exception:
         logger.info(f"Session {session_id} already active.")
 
+    # Retrieve historical context
+    historical_interactions = memory.get_historical_context(location_id=chat_id)
+    context_string = ""
+    if historical_interactions:
+        context_string += "### Previous Conversation:\n"
+        # Display in chronological order
+        for interaction in reversed(historical_interactions):
+            context_string += f"User: {interaction.get('user_input', 'N/A')}\n"
+            context_string += f"Agent: {interaction.get('agent_response', 'N/A')}\n"
+        context_string += "### End Previous Conversation\n\n"
+
+    # Prepend historical context to the current user message
+    full_user_message = context_string + user_message
+    
     # Invoke the agent using the runner in an SDK-aligned way
     try:
         response_text = ""
@@ -52,7 +66,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         async for event in runner.run_async(
             user_id=chat_id,
             session_id=session_id,
-            new_message=types.Content(role="user", parts=[types.Part.from_text(text=user_message)]),
+            new_message=types.Content(role="user", parts=[types.Part.from_text(text=full_user_message)]),
         ):
             if event.is_final_response():
                 if event.content and event.content.parts:
