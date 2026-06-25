@@ -27,7 +27,8 @@ def _format_tool_error(
     if api_response:
         error_details.append(f"api_response: {api_response}")
     error_details.append("instructions_for_llm: Analyze this traceback. If you passed invalid parameters, please correct your arguments and call the tool again. If this is a deprecated API error, do not call this tool again and look for an alternative.")
-    return "\n".join(error_details)
+    return "
+".join(error_details)
 
 def tool_exception_handler(func: Callable) -> Callable:
     @functools.wraps(func)
@@ -53,6 +54,7 @@ def tool_exception_handler(func: Callable) -> Callable:
 class GBPTools:
     def __init__(self):
         self.scopes = ["https://www.googleapis.com/auth/business.manage"]
+        self._last_account_name = None # Initialize to store the last account name
 
     def _get_credentials(self):
         refresh_token = os.getenv("GOOGLE_REFRESH_TOKEN")
@@ -95,21 +97,47 @@ class GBPTools:
     def _build_service(self, service_name: str, version: str, discovery_service_url: str | None = None) -> Any:
         return build(service_name, version, credentials=self._get_credentials(), cache_discovery=False, discoveryServiceUrl=discovery_service_url)
 
+    def _ensure_hierarchical_location_name(self, location_name: str) -> str:
+        """
+        Ensures the location name is in the v4 hierarchical format: 
+        accounts/{accountId}/locations/{locationId}
+        If it's in the v1 format 'locations/{locationId}', it will attempt to 
+        construct the full path using a stored account_name if available.
+        """
+        if location_name.startswith("accounts/"):
+            return location_name
+        
+        # If we have a stored account_name from a previous list_accounts or list_locations call, use it.
+        # This is a bit of a stateful hack but often necessary in federated APIs.
+        if hasattr(self, '_last_account_name') and self._last_account_name:
+             return f"{self._last_account_name}/{location_name}"
+        
+        # Fallback: if we can't determine the account, we might have to raise or hope 
+        # the user provided a full path. For now, let's just return as is and let 
+        # the API error handle it if it's wrong, or log a warning.
+        logger.warning(f"Location name '{location_name}' is not in hierarchical format and no account context found.")
+        return location_name
+
     @tool_exception_handler
     def list_accounts(self) -> Any:
         service = self._build_service("mybusinessaccountmanagement", "v1")
         accounts = service.accounts().list().execute()
-        return accounts.get("accounts", [])
+        account_list = accounts.get("accounts", [])
+        if account_list:
+            # Store the first account as a default context
+            self._last_account_name = account_list[0].get("name")
+        return account_list
 
     @tool_exception_handler
     def list_locations(self, account_name: str) -> Any:
+        self._last_account_name = account_name
         service = self._build_service("mybusinessbusinessinformation", "v1")
         locations = service.accounts().locations().list(parent=account_name, readMask="name,title,storeCode").execute()
         return locations.get("locations", [])
 
     @tool_exception_handler
     def list_reviews(self, location_name: str) -> Any:
-        # location_name is in format accounts/{accountId}/locations/{locationId}
+        location_name = self._ensure_hierarchical_location_name(location_name)
         url = f"https://mybusiness.googleapis.com/v4/{location_name}/reviews"
         data = self._make_request("GET", url)
         return data.get("reviews", [])
@@ -117,13 +145,19 @@ class GBPTools:
     @tool_exception_handler
     def reply_to_review(self, review_name: str, reply_text: str) -> Any:
         # review_name is in format accounts/{accountId}/locations/{locationId}/reviews/{reviewId}
-        url = f"https://mybusiness.googleapis.com/v4/{review_name}:updateReply"
+        url = f"https://mybusiness.googleapis.com/v4/{review_name}/reply"
         body = {"comment": reply_text}
-        return self._make_request("POST", url, body=body)
+        return self._make_request("PUT", url, body=body)
+
+    @tool_exception_handler
+    def delete_review_reply(self, review_name: str) -> Any:
+        # review_name is in format accounts/{accountId}/locations/{locationId}/reviews/{reviewId}
+        url = f"https://mybusiness.googleapis.com/v4/{review_name}/reply"
+        return self._make_request("DELETE", url)
 
     @tool_exception_handler
     def create_local_post(self, location_name: str, summary: str, call_to_action_url: str | None = None) -> Any:
-        # location_name is in format accounts/{accountId}/locations/{locationId}
+        location_name = self._ensure_hierarchical_location_name(location_name)
         url = f"https://mybusiness.googleapis.com/v4/{location_name}/localPosts"
         body = {"languageCode": "en-US", "summary": summary}
         if call_to_action_url:
@@ -132,7 +166,7 @@ class GBPTools:
 
     @tool_exception_handler
     def list_local_posts(self, location_name: str) -> Any:
-        # location_name is in format accounts/{accountId}/locations/{locationId}
+        location_name = self._ensure_hierarchical_location_name(location_name)
         url = f"https://mybusiness.googleapis.com/v4/{location_name}/localPosts"
         data = self._make_request("GET", url)
         return data.get("localPosts", [])
@@ -203,24 +237,17 @@ class GBPTools:
 
     @tool_exception_handler
     def list_questions(self, location_name: str) -> Any:
-        service = self._build_service("mybusinessqanda", "v1")
-        parent_path = location_name if location_name.endswith("/questions") else f"{location_name}/questions"
-        questions = service.locations().questions().list(parent=parent_path).execute()
-        return questions.get("questions", [])
+        return {"error": "The My Business Q&A API was discontinued by Google as of November 2025 and is no longer available."}
 
     @tool_exception_handler
     def answer_question(self, question_name: str, answer_text: str) -> Any:
-        service = self._build_service("mybusinessqanda", "v1")
-        body = {"answer": {"text": answer_text}}
-        return service.locations().questions().answers().upsert(parent=question_name, body=body).execute()
+        return {"error": "The My Business Q&A API was discontinued by Google as of November 2025 and is no longer available."}
 
     @tool_exception_handler
     def search_google_for_business_id(self, *args, **kwargs) -> Any: return {"error": "Not implemented"}
     @tool_exception_handler
     def upload_media_for_post(self, *args, **kwargs) -> Any: return {"error": "Not implemented"}
-    @tool_exception_handler
-    def delete_review_reply(self, *args, **kwargs) -> Any: return {"error": "Not implemented"}
-
+    
 gbp_tools_instance = GBPTools()
 
 tools = [
@@ -230,13 +257,13 @@ tools = [
     gbp_tools_instance.reply_to_review,
     gbp_tools_instance.create_local_post,
     gbp_tools_instance.get_performance_insights,
-    gbp_tools_instance.search_google_for_business_id,
+    # gbp_tools_instance.search_google_for_business_id, # Not implemented
     gbp_tools_instance.upload_media_for_post,
     gbp_tools_instance.get_location_details,
     gbp_tools_instance.update_location_data,
     gbp_tools_instance.list_local_posts,
     gbp_tools_instance.delete_local_post,
     gbp_tools_instance.delete_review_reply,
-    gbp_tools_instance.list_questions,
-    gbp_tools_instance.answer_question,
+    # gbp_tools_instance.list_questions, # Discontinued
+    # gbp_tools_instance.answer_question, # Discontinued
 ]
