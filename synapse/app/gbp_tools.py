@@ -2,12 +2,14 @@ import functools
 import json
 import logging
 import os
+import requests
 from typing import Any, Callable
 
 from google.auth import default
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError, UnknownApiNameOrVersion
+from google.auth.transport.requests import Request as AuthRequest
 
 logger = logging.getLogger(__name__)
 
@@ -72,6 +74,24 @@ class GBPTools:
         credentials, _ = default(scopes=self.scopes)
         return credentials
 
+    def _make_request(self, method: str, url: str, params: dict = None, body: dict = None) -> Any:
+        credentials = self._get_credentials()
+        # Ensure credentials are valid
+        if not credentials.valid:
+            credentials.refresh(AuthRequest())
+        
+        headers = {'Authorization': f'Bearer {credentials.token}'}
+        
+        response = requests.request(
+            method,
+            url,
+            headers=headers,
+            params=params,
+            json=body
+        )
+        response.raise_for_status()
+        return response.json()
+
     def _build_service(self, service_name: str, version: str, discovery_service_url: str | None = None) -> Any:
         return build(service_name, version, credentials=self._get_credentials(), cache_discovery=False, discoveryServiceUrl=discovery_service_url)
 
@@ -89,30 +109,33 @@ class GBPTools:
 
     @tool_exception_handler
     def list_reviews(self, location_name: str) -> Any:
-        # Reviews still primarily use the v4 endpoint
-        service = self._build_service("mybusiness", "v4")
-        reviews = service.accounts().locations().reviews().list(parent=location_name).execute()
-        return reviews.get("reviews", [])
+        # location_name is in format accounts/{accountId}/locations/{locationId}
+        url = f"https://mybusiness.googleapis.com/v4/{location_name}/reviews"
+        data = self._make_request("GET", url)
+        return data.get("reviews", [])
 
     @tool_exception_handler
     def reply_to_review(self, review_name: str, reply_text: str) -> Any:
-        service = self._build_service("mybusiness", "v4")
+        # review_name is in format accounts/{accountId}/locations/{locationId}/reviews/{reviewId}
+        url = f"https://mybusiness.googleapis.com/v4/{review_name}:updateReply"
         body = {"comment": reply_text}
-        return service.accounts().locations().reviews().updateReply(name=review_name, body=body).execute()
+        return self._make_request("POST", url, body=body)
 
     @tool_exception_handler
     def create_local_post(self, location_name: str, summary: str, call_to_action_url: str | None = None) -> Any:
-        service = self._build_service("mybusiness", "v4")
+        # location_name is in format accounts/{accountId}/locations/{locationId}
+        url = f"https://mybusiness.googleapis.com/v4/{location_name}/localPosts"
         body = {"languageCode": "en-US", "summary": summary}
         if call_to_action_url:
             body["callToAction"] = {"actionType": "LEARN_MORE", "uri": call_to_action_url}
-        return service.accounts().locations().localPosts().create(parent=location_name, body=body).execute()
+        return self._make_request("POST", url, body=body)
 
     @tool_exception_handler
     def list_local_posts(self, location_name: str) -> Any:
-        service = self._build_service("mybusiness", "v4")
-        posts = service.accounts().locations().localPosts().list(parent=location_name).execute()
-        return posts.get("localPosts", [])
+        # location_name is in format accounts/{accountId}/locations/{locationId}
+        url = f"https://mybusiness.googleapis.com/v4/{location_name}/localPosts"
+        data = self._make_request("GET", url)
+        return data.get("localPosts", [])
 
     @tool_exception_handler
     def get_performance_insights(self, location_name: str, start_day: str, end_day: str) -> Any:
@@ -174,8 +197,9 @@ class GBPTools:
 
     @tool_exception_handler
     def delete_local_post(self, post_name: str) -> Any:
-        service = self._build_service("mybusiness", "v4")
-        return service.accounts().locations().localPosts().delete(name=post_name).execute()
+        # post_name is in format accounts/{accountId}/locations/{locationId}/localPosts/{postId}
+        url = f"https://mybusiness.googleapis.com/v4/{post_name}"
+        return self._make_request("DELETE", url)
 
     @tool_exception_handler
     def list_questions(self, location_name: str) -> Any:
