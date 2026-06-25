@@ -27,8 +27,7 @@ def _format_tool_error(
     if api_response:
         error_details.append(f"api_response: {api_response}")
     error_details.append("instructions_for_llm: Analyze this traceback. If you passed invalid parameters, please correct your arguments and call the tool again. If this is a deprecated API error, do not call this tool again and look for an alternative.")
-    return "
-".join(error_details)
+    return "\n".join(error_details)
 
 def tool_exception_handler(func: Callable) -> Callable:
     @functools.wraps(func)
@@ -54,7 +53,7 @@ def tool_exception_handler(func: Callable) -> Callable:
 class GBPTools:
     def __init__(self):
         self.scopes = ["https://www.googleapis.com/auth/business.manage"]
-        self._last_account_name = None # Initialize to store the last account name
+        self._last_account_name = None 
 
     def _get_credentials(self):
         refresh_token = os.getenv("GOOGLE_REFRESH_TOKEN")
@@ -98,23 +97,12 @@ class GBPTools:
         return build(service_name, version, credentials=self._get_credentials(), cache_discovery=False, discoveryServiceUrl=discovery_service_url)
 
     def _ensure_hierarchical_location_name(self, location_name: str) -> str:
-        """
-        Ensures the location name is in the v4 hierarchical format: 
-        accounts/{accountId}/locations/{locationId}
-        If it's in the v1 format 'locations/{locationId}', it will attempt to 
-        construct the full path using a stored account_name if available.
-        """
         if location_name.startswith("accounts/"):
             return location_name
         
-        # If we have a stored account_name from a previous list_accounts or list_locations call, use it.
-        # This is a bit of a stateful hack but often necessary in federated APIs.
         if hasattr(self, '_last_account_name') and self._last_account_name:
              return f"{self._last_account_name}/{location_name}"
         
-        # Fallback: if we can't determine the account, we might have to raise or hope 
-        # the user provided a full path. For now, let's just return as is and let 
-        # the API error handle it if it's wrong, or log a warning.
         logger.warning(f"Location name '{location_name}' is not in hierarchical format and no account context found.")
         return location_name
 
@@ -124,7 +112,6 @@ class GBPTools:
         accounts = service.accounts().list().execute()
         account_list = accounts.get("accounts", [])
         if account_list:
-            # Store the first account as a default context
             self._last_account_name = account_list[0].get("name")
         return account_list
 
@@ -144,14 +131,12 @@ class GBPTools:
 
     @tool_exception_handler
     def reply_to_review(self, review_name: str, reply_text: str) -> Any:
-        # review_name is in format accounts/{accountId}/locations/{locationId}/reviews/{reviewId}
         url = f"https://mybusiness.googleapis.com/v4/{review_name}/reply"
         body = {"comment": reply_text}
         return self._make_request("PUT", url, body=body)
 
     @tool_exception_handler
     def delete_review_reply(self, review_name: str) -> Any:
-        # review_name is in format accounts/{accountId}/locations/{locationId}/reviews/{reviewId}
         url = f"https://mybusiness.googleapis.com/v4/{review_name}/reply"
         return self._make_request("DELETE", url)
 
@@ -202,14 +187,13 @@ class GBPTools:
                 dailyRange_endDate_day=end_date["day"]
             ).execute()
             
-            # Sanitize response: Default missing "value" keys to "0" (Proto3 zero omission rule)
             time_series = response.get("timeSeries", {})
             dated_values = time_series.get("datedValues", [])
             sanitized_values = []
             for dv in dated_values:
                 sanitized_values.append({
                     "date": dv.get("date"),
-                    "value": dv.get("value", "0")  # Explicitly default to "0"
+                    "value": dv.get("value", "0")
                 })
             
             results[metric] = {"datedValues": sanitized_values}
@@ -231,7 +215,6 @@ class GBPTools:
 
     @tool_exception_handler
     def delete_local_post(self, post_name: str) -> Any:
-        # post_name is in format accounts/{accountId}/locations/{locationId}/localPosts/{postId}
         url = f"https://mybusiness.googleapis.com/v4/{post_name}"
         return self._make_request("DELETE", url)
 
@@ -244,10 +227,8 @@ class GBPTools:
         return {"error": "The My Business Q&A API was discontinued by Google as of November 2025 and is no longer available."}
 
     @tool_exception_handler
-    def search_google_for_business_id(self, *args, **kwargs) -> Any: return {"error": "Not implemented"}
-    @tool_exception_handler
     def upload_media_for_post(self, *args, **kwargs) -> Any: return {"error": "Not implemented"}
-    
+
 gbp_tools_instance = GBPTools()
 
 tools = [
@@ -257,13 +238,10 @@ tools = [
     gbp_tools_instance.reply_to_review,
     gbp_tools_instance.create_local_post,
     gbp_tools_instance.get_performance_insights,
-    # gbp_tools_instance.search_google_for_business_id, # Not implemented
     gbp_tools_instance.upload_media_for_post,
     gbp_tools_instance.get_location_details,
     gbp_tools_instance.update_location_data,
     gbp_tools_instance.list_local_posts,
     gbp_tools_instance.delete_local_post,
     gbp_tools_instance.delete_review_reply,
-    # gbp_tools_instance.list_questions, # Discontinued
-    # gbp_tools_instance.answer_question, # Discontinued
 ]
