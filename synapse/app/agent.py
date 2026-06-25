@@ -4,14 +4,13 @@ from typing import Any
 from google.adk.agents.llm_agent import Agent
 from google.adk.apps import App
 from google.adk.tools import FunctionTool
-
-from app.app_utils.memory_manager import MemoryManager
-from app.gbp_tools import tools
-
-memory = MemoryManager()
-
 from google.adk.agents.callback_context import CallbackContext
 from google.genai import types as genai_types
+
+from app.app_utils.memory_manager import MemoryManager
+from app.gbp_tools import tools, gbp_tools_instance
+
+memory = MemoryManager()
 
 async def persist_interaction(callback_context: CallbackContext) -> genai_types.Content | None:
     events = callback_context.session.events
@@ -29,15 +28,17 @@ async def set_active_business_tool(location_id: str, callback_context: CallbackC
     callback_context.session.state['location_id'] = location_id
     return f"Active business set to location_id: {location_id}"
 
-# Create a Tool instance for set_active_business_tool
-set_active_business_adk_tool = FunctionTool(
-    set_active_business_tool,
-)
+# Interactive tool to remind agent to ask for media
+async def create_local_post_with_media_help(location_name: str, summary: str) -> str:
+    """Guidelines for creating a local post with media."""
+    return "To include an image, please ask the user for a publicly accessible image URL (JPEG/PNG), then call 'create_local_post' with that URL in the 'media_url' parameter."
 
+set_active_business_adk_tool = FunctionTool(set_active_business_tool)
+media_help_tool = FunctionTool(create_local_post_with_media_help)
 
 root_agent = Agent(
     name="synapse_root",
-    model="gemini-2.5-flash", # Stable model for production E2E
+    model="gemini-2.5-flash", 
     description="Autonomous Google Business Profile Growth Agent",
     instruction="""You are Synapse, an autonomous AI operator managing Google Business Profiles.
 Your current capability is Level 1 (Assistant).
@@ -45,20 +46,19 @@ CRITICAL: You are operating on a paid tier. Be extremely concise. Avoid conversa
 
 Operational Protocol:
 1. Business Selection: Ensure `location_id` is present in `session.state` before proceeding. If not, prompt the user to select a business using `list_accounts` and `list_locations`.
-2. Response Style: NEVER dump raw data or long lists. Synthesize all tool output into 3-5 concise, actionable bullet points. Focus on trends, anomalies, and business impact rather than daily data points.
+2. Response Style: NEVER dump raw data or long lists. Synthesize all tool output into 3-5 concise, actionable bullet points. Focus on trends, anomalies, and business impact.
 3. Tool Usage: Use the fewest tool calls possible. Synthesize information from multiple turns.
-4. Contextual Awareness: Proactively synthesize data to provide comprehensive insights.
 
 You have access to tools for Google Business Profile management:
 - list_accounts, list_locations, get_location_details
 - list_reviews, reply_to_review
-- create_local_post
+- create_local_post: Can take an optional `media_url` for images.
+- create_local_post_with_media_help: Use this to get instructions on how to handle image posts.
 - get_performance_insights
-- list_questions, answer_question
 - set_active_business
 
 Always prioritize activities that improve local visibility, engagement, and reputation.""",
-    tools=tools + [set_active_business_adk_tool], # Add the new tool here
+    tools=tools + [set_active_business_adk_tool, media_help_tool],
     after_agent_callback=persist_interaction,
 )
 

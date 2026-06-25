@@ -141,12 +141,14 @@ class GBPTools:
         return self._make_request("DELETE", url)
 
     @tool_exception_handler
-    def create_local_post(self, location_name: str, summary: str, call_to_action_url: str | None = None) -> Any:
+    def create_local_post(self, location_name: str, summary: str, call_to_action_url: str | None = None, media_url: str | None = None) -> Any:
         location_name = self._ensure_hierarchical_location_name(location_name)
         url = f"https://mybusiness.googleapis.com/v4/{location_name}/localPosts"
-        body = {"languageCode": "en-US", "summary": summary}
+        body = {"languageCode": "en-US", "summary": summary, "topicType": "STANDARD"}
         if call_to_action_url:
             body["callToAction"] = {"actionType": "LEARN_MORE", "uri": call_to_action_url}
+        if media_url:
+            body["media"] = [{"mediaFormat": "PHOTO", "sourceUrl": media_url}]
         return self._make_request("POST", url, body=body)
 
     @tool_exception_handler
@@ -163,7 +165,7 @@ class GBPTools:
             perf_location_name = f"locations/{location_id}"
         else:
             perf_location_name = location_name
-            
+
         service = self._build_service("businessprofileperformance", "v1")
         metrics = [
             "CALL_CLICKS", "WEBSITE_CLICKS", "BUSINESS_IMPRESSIONS_DESKTOP_MAPS", 
@@ -174,7 +176,7 @@ class GBPTools:
         start_date = {"year": int(start_day[:4]), "month": int(start_day[5:7]), "day": int(start_day[8:10])}
         end_date = {"year": int(end_day[:4]), "month": int(end_day[5:7]), "day": int(end_day[8:10])}
         results = {}
-        
+
         for metric in metrics:
             response = service.locations().getDailyMetricsTimeSeries(
                 name=perf_location_name, 
@@ -186,7 +188,7 @@ class GBPTools:
                 dailyRange_endDate_month=end_date["month"], 
                 dailyRange_endDate_day=end_date["day"]
             ).execute()
-            
+
             time_series = response.get("timeSeries", {})
             dated_values = time_series.get("datedValues", [])
             sanitized_values = []
@@ -195,9 +197,9 @@ class GBPTools:
                     "date": dv.get("date"),
                     "value": dv.get("value", "0")
                 })
-            
+
             results[metric] = {"datedValues": sanitized_values}
-            
+
         return results
 
     @tool_exception_handler
@@ -226,8 +228,6 @@ class GBPTools:
     def answer_question(self, question_name: str, answer_text: str) -> Any:
         return {"error": "The My Business Q&A API was discontinued by Google as of November 2025 and is no longer available."}
 
-    @tool_exception_handler
-    def upload_media_for_post(self, *args, **kwargs) -> Any: return {"error": "Not implemented"}
 
 gbp_tools_instance = GBPTools()
 
@@ -238,10 +238,12 @@ tools = [
     gbp_tools_instance.reply_to_review,
     gbp_tools_instance.create_local_post,
     gbp_tools_instance.get_performance_insights,
-    gbp_tools_instance.upload_media_for_post,
     gbp_tools_instance.get_location_details,
     gbp_tools_instance.update_location_data,
     gbp_tools_instance.list_local_posts,
     gbp_tools_instance.delete_local_post,
     gbp_tools_instance.delete_review_reply,
+    gbp_tools_instance.list_questions,
+    gbp_tools_instance.answer_question,
 ]
+
