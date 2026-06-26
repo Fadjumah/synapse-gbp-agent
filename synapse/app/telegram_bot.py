@@ -1,5 +1,6 @@
 import logging
 import os
+from datetime import datetime
 
 from dotenv import load_dotenv
 from google.adk.runners import Runner
@@ -47,7 +48,11 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # Retrieve historical context
     historical_interactions = memory.get_historical_context(location_id=chat_id)
-    context_string = ""
+    
+    # Ground the agent with current date/time
+    current_time_str = datetime.now().strftime("%A, %B %d, %Y")
+    context_string = f"### System Context:\n- Current Date: {current_time_str}\n\n"
+
     if historical_interactions:
         context_string += "### Previous Conversation:\n"
         # Display in chronological order
@@ -56,7 +61,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             context_string += f"Agent: {interaction.get('agent_response', 'N/A')}\n"
         context_string += "### End Previous Conversation\n\n"
 
-    # Prepend historical context to the current user message
+    # Prepend context to the current user message
     full_user_message = context_string + user_message
     
     # Invoke the agent using the runner in an SDK-aligned way
