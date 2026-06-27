@@ -34,20 +34,31 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await context.bot.send_message(chat_id=update.effective_chat.id, text="I'm a bot, please talk to me!")
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not update.message or not update.message.text:
+        return
+
     user_message = update.message.text
     chat_id = str(update.effective_chat.id)
-    session_id = chat_id
+    session_id = f"tg_{chat_id}"
 
     logger.info(f"Received message from {chat_id}: {user_message}")
 
-    # Ensure session exists (wrap in try/except to ignore already exists)
+    # Ensure session exists
     try:
-        await session_service.create_session(app_name="app", user_id=chat_id, session_id=session_id)
+        await session_service.get_session(app_name="app", user_id=chat_id, session_id=session_id)
     except Exception:
-        logger.info(f"Session {session_id} already active.")
+        try:
+            await session_service.create_session(app_name="app", user_id=chat_id, session_id=session_id)
+            logger.info(f"Created new session for {chat_id}")
+        except Exception as e:
+            logger.error(f"Failed to create/get session: {e}")
 
     # Retrieve historical context
-    historical_interactions = memory.get_historical_context(location_id=chat_id)
+    try:
+        historical_interactions = memory.get_historical_context(location_id=chat_id)
+    except Exception as e:
+        logger.error(f"Memory error: {e}")
+        historical_interactions = []
     
     # Ground the agent with current date/time
     current_time_str = datetime.now().strftime("%A, %B %d, %Y")
@@ -67,7 +78,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Invoke the agent using the runner in an SDK-aligned way
     try:
         response_text = ""
-        # Using run_async with standard SDK types for better alignment
+        logger.info(f"Invoking agent for {chat_id}...")
         async for event in runner.run_async(
             user_id=chat_id,
             session_id=session_id,
@@ -78,14 +89,31 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     response_text += event.content.parts[0].text
 
         if response_text:
+            logger.info(f"Agent responded for {chat_id}")
             await context.bot.send_message(chat_id=update.effective_chat.id, text=response_text)
         else:
-            logger.warning("Agent returned empty response")
+            logger.warning(f"Agent returned empty response for {chat_id}")
             await context.bot.send_message(chat_id=update.effective_chat.id, text="Sorry, I couldn't generate a response.")
 
     except Exception as e:
-        logger.error(f"Error invoking agent: {e}", exc_info=True)
+        logger.error(f"Error invoking agent for {chat_id}: {e}", exc_info=True)
         await context.bot.send_message(chat_id=update.effective_chat.id, text="An error occurred while processing your request.")
+
+async def set_telegram_webhook(url: str):
+    """Utility to set the webhook for the Telegram bot."""
+    if not TELEGRAM_TOKEN:
+        logger.error("TELEGRAM_TOKEN not set, cannot set webhook")
+        return False
+    
+    application = create_telegram_application()
+    if not application:
+        return False
+        
+    await application.initialize()
+    webhook_url = f"{url.rstrip('/')}/webhook"
+    logger.info(f"Setting Telegram webhook to: {webhook_url}")
+    result = await application.bot.set_webhook(url=webhook_url)
+    return result
 
 def create_telegram_application():
     if not TELEGRAM_TOKEN:

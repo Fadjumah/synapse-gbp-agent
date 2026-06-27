@@ -17,7 +17,7 @@ from contextlib import asynccontextmanager
 
 import google.auth
 from dotenv import load_dotenv
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, BackgroundTasks
 
 # Load environment variables
 load_dotenv()
@@ -28,7 +28,7 @@ from telegram import Update
 
 from app.app_utils.telemetry import setup_telemetry
 from app.app_utils.typing import Feedback
-from app.telegram_bot import create_telegram_application
+from app.telegram_bot import create_telegram_application, set_telegram_webhook
 
 # Initialize the Gemini API client
 client = genai.Client()
@@ -44,9 +44,10 @@ else:
 allow_origins = (
     os.getenv("ALLOW_ORIGINS", "").split(",") if os.getenv("ALLOW_ORIGINS") else None
 )
+from app.telegram_bot import create_telegram_application
 
-# Initialize Telegram application variable
-telegram_app = create_telegram_application()
+# Initialize the Gemini API client
+...
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -59,7 +60,6 @@ async def lifespan(app: FastAPI):
     if telegram_app is not None:
         await telegram_app.stop()
         await telegram_app.shutdown()
-
 # Artifact bucket for ADK (created by Terraform, passed via env var)
 logs_bucket_name = os.environ.get("LOGS_BUCKET_NAME")
 
@@ -100,35 +100,38 @@ def collect_feedback(feedback: Feedback) -> dict[str, str]:
 
 @app.post("/webhook/{token}")
 @app.post("/webhook")
-async def telegram_webhook(request: Request, token: str = None):
+async def telegram_webhook(request: Request, background_tasks: BackgroundTasks, token: str = None):
     # Log incoming request details immediately
-    logger.log_struct({
-        "message": "Received request at /webhook",
-        "path": request.url.path,
-        "method": request.method,
-        "token_provided": token is not None,
-        "headers": dict(request.headers),
-    }, severity="INFO")
+    if hasattr(logger, "log_struct"):
+        logger.log_struct({
+            "message": "Received request at /webhook",
+            "path": request.url.path,
+            "method": request.method,
+            "token_provided": token is not None,
+        }, severity="INFO")
+    else:
+        logger.info(f"Received request at /webhook, path: {request.url.path}")
 
     if not telegram_app:
-        logger.log_text("Telegram bot not initialized", severity="WARNING")
+        if hasattr(logger, "log_text"):
+            logger.log_text("Telegram bot not initialized", severity="WARNING")
+        else:
+            logger.warning("Telegram bot not initialized")
         return {"status": "bot not initialized"}
 
-    # Optional: Validate the token if needed
-    # if token != os.getenv("TELEGRAM_TOKEN"):
-    #     return {"status": "unauthorized"}, 401
-
     try:
-        body = await request.body()
-        # Log the raw body for debugging
-        logger.log_struct({"message": "Webhook body", "body": body.decode('utf-8')}, severity="INFO")
-
         data = await request.json()
         update = Update.de_json(data, telegram_app.bot)
-        await telegram_app.process_update(update)
+        
+        # Process in background to avoid Telegram timeouts and retries
+        background_tasks.add_task(telegram_app.process_update, update)
+        
         return {"status": "ok"}
     except Exception as e:
-        logger.log_text(f"Error processing webhook: {e!s}", severity="ERROR")
+        if hasattr(logger, "log_text"):
+            logger.log_text(f"Error processing webhook: {e!s}", severity="ERROR")
+        else:
+            logger.error(f"Error processing webhook: {e}")
         return {"status": "error", "message": str(e)}
 
 @app.post("/")
