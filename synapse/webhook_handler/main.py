@@ -3,6 +3,7 @@ import json
 import requests
 import traceback
 from google.cloud import aiplatform
+from google.cloud.aiplatform.preview import reasoning_engines  # <--- Correct import path
 from google.cloud import secretmanager
 
 # Configuration
@@ -11,7 +12,7 @@ LOCATION = os.environ.get("LOCATION", "us-east1")
 REASONING_ENGINE_ID = os.environ.get("REASONING_ENGINE_ID")
 SECRET_NAME = os.environ.get("TELEGRAM_TOKEN_SECRET_NAME", "TELEGRAM_TOKEN")
 
-# Initialize stable AI Platform SDK
+# Initialize AI Platform
 aiplatform.init(project=PROJECT_ID, location=LOCATION)
 
 def get_secret(secret_name):
@@ -22,7 +23,6 @@ def get_secret(secret_name):
 
 def telegram_webhook(request):
     """HTTP Cloud Function handler."""
-    # Cloud Functions passes the Flask request object directly as an argument
     data = request.get_json(silent=True)
     print(f"Received payload: {json.dumps(data)}")
     
@@ -39,11 +39,11 @@ def telegram_webhook(request):
         # 1. Get Telegram Token
         telegram_token = get_secret(SECRET_NAME)
         
-        # 2. Call Vertex AI Reasoning Engine using the correct preview class
-        remote_app = aiplatform.preview.ReasoningEngine(REASONING_ENGINE_ID)
+        # 2. Call Vertex AI Reasoning Engine
+        remote_app = reasoning_engines.ReasoningEngine(REASONING_ENGINE_ID)
         print(f"Querying Reasoning Engine: {REASONING_ENGINE_ID} with input: {user_text}")
         
-        # Call the reasoning engine's query method
+        # Invoke the reasoning engine using standard query
         response_text = remote_app.query(
             input=user_text
         )
