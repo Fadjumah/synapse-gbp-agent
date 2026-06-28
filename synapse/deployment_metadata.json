@@ -4,10 +4,10 @@
   "is_a2a": false,
   "deployment_timestamp": "2026-06-27T23:40:28.392828+00:00",
   "pending_operation": {
-    "operation_name": "projects/468613454814/locations/us-east1/reasoningEngines/3504750488140644352/operations/5718104022334832640",
+    "operation_name": "projects/468613454814/locations/us-east1/reasoningEngines/8261677594550730752/operations/4156480851544113152",
     "project": "gen-lang-client-0479504041",
     "location": "us-east1",
     "deployment_target": "agent_runtime",
-    "started_at": "2026-06-28T11:14:11.686298+00:00"
+    "started_at": "2026-06-28T14:30:25.849735+00:00"
   }
 }

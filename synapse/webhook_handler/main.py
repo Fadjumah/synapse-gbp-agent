@@ -3,11 +3,8 @@ import json
 import requests
 import traceback
 import vertexai
-from flask import Flask, request, jsonify
 from google.cloud import secretmanager
 from vertexai.preview import reasoning_engines
-
-app = Flask(__name__)
 
 # Configuration
 PROJECT_ID = os.environ.get("GCP_PROJECT_ID")
@@ -24,51 +21,46 @@ def get_secret(secret_name):
     response = client.access_secret_version(request={"name": name})
     return response.payload.data.decode("UTF-8")
 
-@app.route('/', methods=['POST'])
-def telegram_webhook():
-    data = request.get_json()
+def telegram_webhook(request):
+    """HTTP Cloud Function handler."""
+    # Cloud Functions passes the Flask request object directly as an argument
+    data = request.get_json(silent=True)
     print(f"Received payload: {json.dumps(data)}")
+    
     if not data or 'message' not in data:
-        return jsonify({'status': 'ok'}), 200
+        return 'OK', 200
     
     chat_id = data['message']['chat']['id']
     user_text = data['message'].get('text', '')
     
     if not user_text:
-        return jsonify({'status': 'ok'}), 200
+        return 'OK', 200
 
     try:
         # 1. Get Telegram Token
         telegram_token = get_secret(SECRET_NAME)
         
-        # 2. Call Reasoning Engine
-        # REASONING_ENGINE_ID is already the full resource name
+        # 2. Call Vertex AI Reasoning Engine (using standard query)
         remote_app = reasoning_engines.ReasoningEngine(REASONING_ENGINE_ID)
         print(f"Querying Reasoning Engine: {REASONING_ENGINE_ID} with input: {user_text}")
         
-        # Query the Reasoning Engine
-        response = remote_app.query(
+        # Call the standard non-streaming query
+        response_text = remote_app.query(
             input=user_text
         )
-        
-        # Collect the response (response is typically already the string or dictionary)
-        print(f"Got response: {response}")
+        print(f"Got response: {response_text}")
         
         # 3. Send response back to Telegram
         telegram_api_url = f"https://api.telegram.org/bot{telegram_token}/sendMessage"
         resp = requests.post(telegram_api_url, json={
             "chat_id": chat_id,
-            "text": str(response)
+            "text": str(response_text)
         })
         print(f"Telegram response: {resp.status_code} {resp.text}")
         
-        return jsonify({'status': 'ok'}), 200
+        return 'OK', 200
         
     except Exception as e:
         print(f"Error caught: {e}")
         print(traceback.format_exc())
-        return jsonify({'status': 'error', 'message': str(e)}), 500
-
-if __name__ == '__main__':
-    # Cloud Run/Functions automatically set the PORT environment variable
-    app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 8080)))
+        return f"Error: {str(e)}", 500

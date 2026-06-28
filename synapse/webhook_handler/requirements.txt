@@ -2,5 +2,4 @@ requests
 flask
 google-cloud-secret-manager
 google-cloud-aiplatform
-google-cloud-run
-gunicorn
+functions-framework
