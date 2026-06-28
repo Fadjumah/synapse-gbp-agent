@@ -44,10 +44,16 @@ def telegram_webhook(request):
         remote_app = reasoning_engines.ReasoningEngine(REASONING_ENGINE_ID)
         print(f"Querying Reasoning Engine: {REASONING_ENGINE_ID} with input: {user_text}")
         
-        # Call the standard non-streaming query
-        response_text = remote_app.query(
+        # Use the official SDK predict method
+        response_data = remote_app.predict(
             input=user_text
         )
+        
+        # If response_data is a dictionary, extract the text/output field
+        if isinstance(response_data, dict):
+            response_text = response_data.get("output", response_data.get("text", str(response_data)))
+        else:
+            response_text = str(response_data)
         print(f"Got response: {response_text}")
         
         # 3. Send response back to Telegram
