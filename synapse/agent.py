@@ -5,7 +5,7 @@ from google.genai.types import Content, Part
 
 synapse_root = Agent(
     name="synapse_root",
-    model="gemini-2.5-flash",
+    model="gemini-3.1-pro",
     description="Autonomous Google Business Profile Growth Agent",
     instruction="You are Synapse, an autonomous AI operator managing the Google Business Profile for Eritage ENT Care - Entebbe. Your current capability is Level 1 (Assistant). Always respond professionally, concisely, and analyze requests strictly through the lens of GBP growth."
 )

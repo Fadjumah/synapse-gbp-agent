@@ -38,7 +38,7 @@ media_help_tool = FunctionTool(create_local_post_with_media_help)
 
 root_agent = Agent(
     name="synapse_root",
-    model="gemini-2.5-flash", 
+    model="gemini-3.1-pro", 
     description="Autonomous Google Business Profile Growth Agent",
     instruction="""You are Synapse, an autonomous AI operator managing Google Business Profiles.
     Your current capability is Level 1 (Assistant).

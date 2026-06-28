@@ -44,21 +44,20 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     logger.info(f"Received message from {chat_id}: {user_message}")
 
     # Ensure session exists
-    try:
-        await session_service.get_session(app_name="app", user_id=chat_id, session_id=session_id)
-    except Exception:
+    session = await session_service.get_session(app_name="app", user_id=chat_id, session_id=session_id)
+    if not session:
         try:
             await session_service.create_session(app_name="app", user_id=chat_id, session_id=session_id)
             logger.info(f"Created new session for {chat_id}")
         except Exception as e:
-            logger.error(f"Failed to create/get session: {e}")
+            logger.error(f"Failed to create session: {e}")
 
     # Retrieve historical context
+    historical_interactions = []
     try:
         historical_interactions = memory.get_historical_context(location_id=chat_id)
     except Exception as e:
         logger.error(f"Memory error: {e}")
-        historical_interactions = []
     
     # Ground the agent with current date/time
     current_time_str = datetime.now().strftime("%A, %B %d, %Y")

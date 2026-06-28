@@ -24,18 +24,32 @@ class MemoryManager:
             return
 
         # Check for service account or explicit credentials to avoid metadata server timeouts
-        if not os.getenv("GOOGLE_APPLICATION_CREDENTIALS") and not os.getenv("FIREBASE_SERVICE_ACCOUNT"):
-            logger.warning("No Firestore credentials found in environment. Memory features disabled to avoid timeouts.")
+        # GOOGLE_APPLICATION_CREDENTIALS is the standard, but we also allow FIRESTORE_PROJECT_ID override
+        project_id = os.getenv("FIRESTORE_PROJECT_ID")
+        
+        if not os.getenv("GOOGLE_APPLICATION_CREDENTIALS") and not os.getenv("FIREBASE_SERVICE_ACCOUNT") and not project_id:
+            logger.warning("No Firestore credentials or project ID found in environment. Memory features disabled to avoid timeouts.")
             return
 
         try:
             # Set a short timeout for initialization if possible
-            self.db = firestore.Client()
+            self.db = firestore.Client(project=project_id)
             self.collection = self.db.collection(collection_name)
-            self.enabled = True
-            logger.info("Firestore MemoryManager initialized successfully.")
+            
+            logger.info(f"Attempting to connect to Firestore project: {self.db.project}")
+            
+            # Simple check to see if we can actually reach Firestore
+            # This avoids noisy 403s later if the API is disabled
+            try:
+                list(self.collection.limit(1).stream(timeout=2))
+                self.enabled = True
+                logger.info(f"Firestore MemoryManager initialized successfully for project: {self.db.project}")
+            except Exception as e:
+                logger.warning(f"Firestore API check failed for project {self.db.project}: {e}. Memory features will be disabled.")
+                self.enabled = False
         except Exception as e:
             logger.error(f"Failed to initialize Firestore Client: {e}")
+            self.enabled = False
 
     def save_interaction(self, location_id: str, user_input: str, agent_response: str) -> None:
         """Saves an interaction to Firestore."""
