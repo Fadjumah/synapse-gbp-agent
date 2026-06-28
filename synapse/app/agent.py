@@ -9,8 +9,23 @@ from google.genai import types as genai_types
 
 from app.app_utils.memory_manager import MemoryManager
 from app.gbp_tools import tools, gbp_tools_instance
+from app.retrievers import create_search_tool
 
 memory = MemoryManager()
+
+# RAG Configuration
+project_id = os.getenv("GOOGLE_CLOUD_PROJECT")
+data_store_region = os.getenv("DATA_STORE_REGION", "global")
+data_store_id = os.getenv("DATA_STORE_ID")
+data_store_path = (
+    f"projects/{project_id}/locations/{data_store_region}"
+    f"/collections/default_collection/dataStores/{data_store_id}"
+)
+
+# Initialize Search Tool if ID is provided
+search_tool = []
+if data_store_id:
+    search_tool = [create_search_tool(data_store_path)]
 
 async def persist_interaction(callback_context: CallbackContext) -> genai_types.Content | None:
     events = callback_context.session.events
@@ -61,9 +76,10 @@ root_agent = Agent(
     - create_local_post_with_media_help: Use this to get instructions on how to handle image posts.
     - get_performance_insights
     - set_active_business
+    - RAG Tools: Use available search tools for grounding answers in provided documentation.
 
     Always prioritize activities that improve local visibility, engagement, and reputation.""",
-    tools=tools + [set_active_business_adk_tool, media_help_tool],
+    tools=tools + [set_active_business_adk_tool, media_help_tool] + search_tool,
     after_agent_callback=persist_interaction,
 )
 

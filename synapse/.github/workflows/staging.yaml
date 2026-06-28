@@ -58,31 +58,47 @@ jobs:
         with:
           install_components: 'beta'
 
-      - name: Install dependencies
-        run: uv sync --locked
+      - name: Configure Docker for Artifact Registry
+        run: |
+          gcloud auth configure-docker ${{ vars.REGION }}-docker.pkg.dev --quiet
 
-      - name: Deploy to Staging (Agent Runtime)
+      - name: Build and Push Docker Image
+        run: |
+          docker build -t ${{ vars.REGION }}-docker.pkg.dev/${{ vars.CICD_PROJECT_ID }}/${{ vars.ARTIFACT_REGISTRY_REPO_NAME }}/${{ vars.CONTAINER_NAME }}:${{ github.sha }} \
+            --build-arg COMMIT_SHA=${{ github.sha }} \
+            .
+          docker push ${{ vars.REGION }}-docker.pkg.dev/${{ vars.CICD_PROJECT_ID }}/${{ vars.ARTIFACT_REGISTRY_REPO_NAME }}/${{ vars.CONTAINER_NAME }}:${{ github.sha }}
+
+      - name: Deploy to Staging (Cloud Run)
         run: |
           uvx google-agents-cli deploy \
             --project ${{ vars.STAGING_PROJECT_ID }} \
             --region ${{ vars.REGION }} \
-            --service-account=${{ vars.APP_SERVICE_ACCOUNT_STAGING }} \
-            --update-env-vars="COMMIT_SHA=${{ github.sha }},LOGS_BUCKET_NAME=${{ vars.LOGS_BUCKET_NAME_STAGING }}"
+            --image ${{ vars.REGION }}-docker.pkg.dev/${{ vars.CICD_PROJECT_ID }}/${{ vars.ARTIFACT_REGISTRY_REPO_NAME }}/${{ vars.CONTAINER_NAME }}:${{ github.sha }}
 
-      - name: Fetch Auth Token
+      - name: Fetch Staging Service URL
+        id: fetch-url
+        run: |
+          _STAGING_URL=$(gcloud run services describe synapse-full \
+            --region ${{ vars.REGION }} --project ${{ vars.STAGING_PROJECT_ID }} --format="value(status.url)")
+          echo "_staging_url=${_STAGING_URL}" >> $GITHUB_OUTPUT
+
+      - name: Fetch ID Token
         id: fetch-token
         run: |
-          _AUTH_TOKEN=$(gcloud auth print-access-token -q)
-          echo "::add-mask::${_AUTH_TOKEN}"
-          echo "_auth_token=${_AUTH_TOKEN}" >> $GITHUB_OUTPUT
+          _ID_TOKEN=$(gcloud auth print-identity-token --impersonate-service-account=${{ secrets.GCP_SERVICE_ACCOUNT }} -q)
+          echo "::add-mask::${_ID_TOKEN}"
+          echo "_id_token=${_ID_TOKEN}" >> $GITHUB_OUTPUT
 
       - name: Run load test
         run: |
-          export _AUTH_TOKEN="${{ steps.fetch-token.outputs._auth_token }}"
+          export _ID_TOKEN="${{ steps.fetch-token.outputs._id_token }}"
+          export _STAGING_URL="${{ steps.fetch-url.outputs._staging_url }}"
           uvx locust==2.31.1 \
           -f tests/load_test/load_test.py \
           --headless \
-          -t 30s -u 2 -r 0.5 \
+          -H ${_STAGING_URL} \
+          -t 30s -u 10 -r 0.5 \
           --csv=tests/load_test/.results/results \
           --html=tests/load_test/.results/report.html
 
