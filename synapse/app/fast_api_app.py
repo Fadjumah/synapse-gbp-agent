@@ -52,12 +52,14 @@ from app.telegram_bot import create_telegram_application
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup: Initialize and start bot
+    telegram_app = globals().get('telegram_app')
     if telegram_app is not None:
         await telegram_app.initialize()
         await telegram_app.start()
     yield
     # Shutdown: Stop bot
     if telegram_app is not None:
+        await telegram_app.stop()
         await telegram_app.stop()
         await telegram_app.shutdown()
 # Artifact bucket for ADK (created by Terraform, passed via env var)
