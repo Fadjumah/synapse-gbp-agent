@@ -4,7 +4,8 @@
 - ADK setup
 - Gemini integration
 - Robust self-healing tool framework
-- Cloud Run deployment
+- Switch to Vertex AI Agent Runtime (Reasoning Engine)
+- Automated Telegram Webhook Handler
 
 ## Phase 2: GBP Integration (Current)
 - Reviews management
