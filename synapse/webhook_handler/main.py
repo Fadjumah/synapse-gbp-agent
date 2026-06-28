@@ -46,28 +46,15 @@ def telegram_webhook():
         remote_app = reasoning_engines.ReasoningEngine(REASONING_ENGINE_ID)
         print(f"Querying Reasoning Engine: {REASONING_ENGINE_ID} with input: {user_text}")
         
-        # Stream the response
-        response_stream = remote_app.stream_query(
+        # Query the Reasoning Engine
+        response = remote_app.query(
             message=user_text,
             user_id=str(chat_id),
             session_id=str(chat_id)
         )
         
-        # Collect the response
-        response_text = ""
-        for event in response_stream:
-            # Depending on the event structure, this might need adjustments
-            # Based on common patterns, it's often a text chunk or a dict
-            if isinstance(event, str):
-                response_text += event
-            elif isinstance(event, dict) and 'text' in event:
-                response_text += event['text']
-            else:
-                # Fallback if the event structure is different
-                response_text += str(event)
-        
-        print(f"Got response: {response_text}")
-        response = response_text
+        # Collect the response (response is typically already the string or dictionary)
+        print(f"Got response: {response}")
         
         # 3. Send response back to Telegram
         telegram_api_url = f"https://api.telegram.org/bot{telegram_token}/sendMessage"

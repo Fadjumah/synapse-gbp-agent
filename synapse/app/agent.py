@@ -83,4 +83,4 @@ root_agent = Agent(
     after_agent_callback=persist_interaction,
 )
 
-app = App(root_agent=root_agent, name="app")
+app = App(root_agent=root_agent, name="synapse")
