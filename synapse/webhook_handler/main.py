@@ -2,6 +2,7 @@ import os
 import json
 import requests
 import traceback
+import vertexai
 from flask import Flask, request, jsonify
 from google.cloud import secretmanager
 from vertexai.preview import reasoning_engines
@@ -13,6 +14,9 @@ PROJECT_ID = os.environ.get("GCP_PROJECT_ID")
 LOCATION = os.environ.get("LOCATION", "us-east1")
 REASONING_ENGINE_ID = os.environ.get("REASONING_ENGINE_ID")
 SECRET_NAME = os.environ.get("TELEGRAM_TOKEN_SECRET_NAME", "TELEGRAM_TOKEN")
+
+# Initialize Vertex AI
+vertexai.init(project=PROJECT_ID, location=LOCATION)
 
 def get_secret(secret_name):
     client = secretmanager.SecretManagerServiceClient()
@@ -38,10 +42,32 @@ def telegram_webhook():
         telegram_token = get_secret(SECRET_NAME)
         
         # 2. Call Reasoning Engine
+        # REASONING_ENGINE_ID is already the full resource name
         remote_app = reasoning_engines.ReasoningEngine(REASONING_ENGINE_ID)
         print(f"Querying Reasoning Engine: {REASONING_ENGINE_ID} with input: {user_text}")
-        response = remote_app.query(input={"input": user_text, "session_id": str(chat_id)})
-        print(f"Got response: {response}")
+        
+        # Stream the response
+        response_stream = remote_app.stream_query(
+            message=user_text,
+            user_id=str(chat_id),
+            session_id=str(chat_id)
+        )
+        
+        # Collect the response
+        response_text = ""
+        for event in response_stream:
+            # Depending on the event structure, this might need adjustments
+            # Based on common patterns, it's often a text chunk or a dict
+            if isinstance(event, str):
+                response_text += event
+            elif isinstance(event, dict) and 'text' in event:
+                response_text += event['text']
+            else:
+                # Fallback if the event structure is different
+                response_text += str(event)
+        
+        print(f"Got response: {response_text}")
+        response = response_text
         
         # 3. Send response back to Telegram
         telegram_api_url = f"https://api.telegram.org/bot{telegram_token}/sendMessage"
