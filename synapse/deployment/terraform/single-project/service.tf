@@ -44,6 +44,11 @@ resource "google_cloud_run_v2_service" "app" {
       }
 
       env {
+        name  = "FIRESTORE_PROJECT_ID"
+        value = var.project_id
+      }
+
+      env {
         name = "TELEGRAM_TOKEN"
         value_source {
           secret_key_ref {
