@@ -39,11 +39,11 @@ def telegram_webhook(request):
         # 1. Get Telegram Token
         telegram_token = get_secret(SECRET_NAME)
         
-        # 2. Call Vertex AI Reasoning Engine using the STABLE client wrapper
-        remote_app = aiplatform.ReasoningEngine(REASONING_ENGINE_ID)
+        # 2. Call Vertex AI Reasoning Engine using the correct preview class
+        remote_app = aiplatform.preview.ReasoningEngine(REASONING_ENGINE_ID)
         print(f"Querying Reasoning Engine: {REASONING_ENGINE_ID} with input: {user_text}")
         
-        # The stable wrapper dynamically exposes the .query() method
+        # Call the reasoning engine's query method
         response_text = remote_app.query(
             input=user_text
         )
