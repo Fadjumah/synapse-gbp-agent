@@ -2,9 +2,8 @@ import os
 import json
 import requests
 import traceback
-import vertexai
+from google.cloud import aiplatform
 from google.cloud import secretmanager
-from vertexai.preview import reasoning_engines
 
 # Configuration
 PROJECT_ID = os.environ.get("GCP_PROJECT_ID")
@@ -12,8 +11,8 @@ LOCATION = os.environ.get("LOCATION", "us-east1")
 REASONING_ENGINE_ID = os.environ.get("REASONING_ENGINE_ID")
 SECRET_NAME = os.environ.get("TELEGRAM_TOKEN_SECRET_NAME", "TELEGRAM_TOKEN")
 
-# Initialize Vertex AI
-vertexai.init(project=PROJECT_ID, location=LOCATION)
+# Initialize stable AI Platform SDK
+aiplatform.init(project=PROJECT_ID, location=LOCATION)
 
 def get_secret(secret_name):
     client = secretmanager.SecretManagerServiceClient()
@@ -40,20 +39,14 @@ def telegram_webhook(request):
         # 1. Get Telegram Token
         telegram_token = get_secret(SECRET_NAME)
         
-        # 2. Call Vertex AI Reasoning Engine (using standard query)
-        remote_app = reasoning_engines.ReasoningEngine(REASONING_ENGINE_ID)
+        # 2. Call Vertex AI Reasoning Engine using the STABLE client wrapper
+        remote_app = aiplatform.ReasoningEngine(REASONING_ENGINE_ID)
         print(f"Querying Reasoning Engine: {REASONING_ENGINE_ID} with input: {user_text}")
         
-        # Use the official SDK predict method
-        response_data = remote_app.predict(
+        # The stable wrapper dynamically exposes the .query() method
+        response_text = remote_app.query(
             input=user_text
         )
-        
-        # If response_data is a dictionary, extract the text/output field
-        if isinstance(response_data, dict):
-            response_text = response_data.get("output", response_data.get("text", str(response_data)))
-        else:
-            response_text = str(response_data)
         print(f"Got response: {response_text}")
         
         # 3. Send response back to Telegram
