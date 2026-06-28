@@ -48,9 +48,7 @@ def telegram_webhook():
         
         # Query the Reasoning Engine
         response = remote_app.query(
-            message=user_text,
-            user_id=str(chat_id),
-            session_id=str(chat_id)
+            input=user_text
         )
         
         # Collect the response (response is typically already the string or dictionary)

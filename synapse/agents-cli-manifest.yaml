@@ -1,4 +1,4 @@
-name: "synapse"
+name: "app"
 acli_version: "0.5.0"
 agent_directory: "app"
 region: "us-east1"
